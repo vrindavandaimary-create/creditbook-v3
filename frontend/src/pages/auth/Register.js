@@ -4,16 +4,18 @@ import { authAPI } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 
-const STEP = { PHONE: 'phone', OTP: 'otp' };
+const STEP = { DETAILS: 'details', OTP: 'otp' };
 
-export default function Login() {
-  const [step,      setStep]      = useState(STEP.PHONE);
-  const [phone,     setPhone]     = useState('');
-  const [otp,       setOtp]       = useState(['','','','','','']);
-  const [loading,   setLoading]   = useState(false);
-  const [countdown, setCountdown] = useState(0);
+export default function Register() {
+  const [step,         setStep]         = useState(STEP.DETAILS);
+  const [name,         setName]         = useState('');
+  const [phone,        setPhone]        = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [otp,          setOtp]          = useState(['','','','','','']);
+  const [loading,      setLoading]      = useState(false);
+  const [countdown,    setCountdown]    = useState(0);
   const inputRefs = useRef([]);
-  const { verifyOtp } = useAuth();
+  const { verifyRegisterOtp } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,15 +25,16 @@ export default function Login() {
   }, [countdown]);
 
   const sendOTP = async () => {
+    if (!name.trim())  return toast.error('Name is required');
     const cleaned = phone.trim();
     if (!/^\+\d{10,15}$/.test(cleaned))
       return toast.error('Enter phone with country code e.g. +91XXXXXXXXXX');
     setLoading(true);
     try {
-      await authAPI.sendOtp(cleaned);
+      await authAPI.sendRegisterOtp(cleaned, name.trim(), businessName.trim() || 'My Business');
       setStep(STEP.OTP);
       setCountdown(30);
-      toast.success('OTP sent! 📱');
+      toast.success('OTP sent! Verify to create your account 📱');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send OTP');
     } finally { setLoading(false); }
@@ -42,8 +45,8 @@ export default function Login() {
     if (code.length !== 6) return toast.error('Enter all 6 digits');
     setLoading(true);
     try {
-      await verifyOtp(phone.trim(), code);
-      toast.success('Welcome back! 👋');
+      await verifyRegisterOtp(phone.trim(), code);
+      toast.success('Account created! Welcome 🎉');
       navigate('/', { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Verification failed');
@@ -81,36 +84,48 @@ export default function Login() {
       </div>
 
       <div style={{ background:'white', borderRadius:'24px 24px 0 0', padding:'32px 24px 48px' }}>
-        {step === STEP.PHONE ? (
+        {step === STEP.DETAILS ? (
           <>
-            <h2 style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>Welcome back 👋</h2>
-            <p style={{ fontSize:13, color:'var(--text3)', marginBottom:28 }}>Enter your phone number to login</p>
+            <h2 style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>Create Account 🚀</h2>
+            <p style={{ fontSize:13, color:'var(--text3)', marginBottom:28 }}>Fill in your details to get started</p>
+
             <div className="field">
-              <label>Phone Number</label>
+              <label>Full Name *</label>
+              <input placeholder="Your name" value={name}
+                onChange={e => setName(e.target.value)} autoFocus />
+            </div>
+            <div className="field">
+              <label>Phone Number *</label>
               <input type="tel" placeholder="+91XXXXXXXXXX" value={phone}
-                onChange={e => setPhone(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && sendOTP()}
-                autoFocus autoComplete="tel" />
+                onChange={e => setPhone(e.target.value)} autoComplete="tel" />
+            </div>
+            <div className="field">
+              <label>Business Name</label>
+              <input placeholder="My Business (optional)" value={businessName}
+                onChange={e => setBusinessName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && sendOTP()} />
             </div>
             <p style={{ fontSize:12, color:'var(--text3)', marginBottom:20 }}>
-              Include country code — e.g. <strong>+91</strong> for India
+              Phone must include country code — e.g. <strong>+91</strong> for India
             </p>
             <button onClick={sendOTP} disabled={loading} style={btnStyle(loading)}>
               {loading ? 'Sending OTP…' : '📲 Send OTP'}
             </button>
             <p style={{ textAlign:'center', marginTop:24, fontSize:14, color:'var(--text3)' }}>
-              Don't have an account?{' '}
-              <Link to="/register" style={{ color:'var(--blue)', fontWeight:700 }}>Create account</Link>
+              Already have an account?{' '}
+              <Link to="/login" style={{ color:'var(--blue)', fontWeight:700 }}>Login</Link>
             </p>
           </>
         ) : (
           <>
-            <button onClick={() => { setStep(STEP.PHONE); setOtp(['','','','','','']); }}
+            <button onClick={() => { setStep(STEP.DETAILS); setOtp(['','','','','','']); }}
               style={{ background:'none', border:'none', color:'var(--blue)', fontWeight:700, fontSize:14, marginBottom:16, cursor:'pointer', padding:0 }}>
-              ← Change number
+              ← Go back
             </button>
-            <h2 style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>Enter OTP 🔐</h2>
-            <p style={{ fontSize:13, color:'var(--text3)', marginBottom:28 }}>Sent to <strong>{phone}</strong></p>
+            <h2 style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>Verify Phone 🔐</h2>
+            <p style={{ fontSize:13, color:'var(--text3)', marginBottom:28 }}>
+              OTP sent to <strong>{phone}</strong>
+            </p>
             <div style={{ display:'flex', gap:10, justifyContent:'center', marginBottom:28 }}>
               {otp.map((digit, i) => (
                 <input key={i} ref={el => inputRefs.current[i] = el}
@@ -125,7 +140,7 @@ export default function Login() {
               ))}
             </div>
             <button onClick={verifyOTP} disabled={loading} style={btnStyle(loading)}>
-              {loading ? 'Verifying…' : '✅ Verify & Login'}
+              {loading ? 'Creating Account…' : '✅ Verify & Create Account'}
             </button>
             <div style={{ textAlign:'center', marginTop:20 }}>
               {countdown > 0
