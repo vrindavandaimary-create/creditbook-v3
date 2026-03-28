@@ -26,6 +26,12 @@ export function AuthProvider({ children }) {
     return r.data;
   };
 
+  const verifyRegisterOtp = async (phone, otp) => {
+    const r = await authAPI.verifyRegisterOtp(phone, otp);
+    persist(r.data.token, r.data.user);
+    return r.data;
+  };
+
   const logout = () => {
     setToken(null); setUser(null);
     localStorage.removeItem('cb3_token');
@@ -38,7 +44,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <Ctx.Provider value={{ token, user, ready, verifyOtp, logout, updateUser }}>
+    <Ctx.Provider value={{ token, user, ready, verifyOtp, verifyRegisterOtp, logout, updateUser }}>
       {ready ? children : null}
     </Ctx.Provider>
   );
