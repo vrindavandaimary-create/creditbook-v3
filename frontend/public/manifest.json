@@ -1,0 +1,8 @@
+{
+  "short_name": "CreditBook",
+  "name": "CreditBook - Smart Business Ledger",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1a4fd6",
+  "background_color": "#f0f4ff"
+}

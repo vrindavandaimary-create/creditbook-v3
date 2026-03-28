@@ -1,0 +1,10 @@
+const r = require('express').Router();
+const { protect } = require('../middleware/authMiddleware');
+const c = require('../controllers/partyController');
+r.use(protect);
+r.get('/',        c.getParties);
+r.post('/',       c.createParty);
+r.get('/:id',     c.getParty);
+r.put('/:id',     c.updateParty);
+r.delete('/:id',  c.deleteParty);
+module.exports = r;

@@ -1,0 +1,12 @@
+const r      = require('express').Router();
+const { protect } = require('../middleware/authMiddleware');
+const upload = require('../middleware/upload');
+const c      = require('../controllers/billController');
+r.use(protect);
+r.get('/',                       c.getBills);
+r.post('/', upload.single('receiptImage'), c.createBill);
+r.get('/:id',                    c.getBill);
+r.put('/:id/status',             c.updateBillStatus);
+r.post('/:id/save-transaction',  c.saveBillAsTransaction);
+r.delete('/:id',                 c.deleteBill);
+module.exports = r;
