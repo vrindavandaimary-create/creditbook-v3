@@ -6,6 +6,7 @@ import AppLayout   from './components/layout/AppLayout';
 import Calculator  from './components/Calculator';
 import ChatBot     from './components/ChatBot';
 import Login       from './pages/auth/Login';
+import Register    from './pages/auth/Register';
 import Dashboard   from './pages/Dashboard';
 import Parties     from './pages/parties/Parties';
 import AddParty    from './pages/parties/AddParty';
@@ -40,7 +41,8 @@ export default function App() {
           error:   { iconTheme: { primary:'#e53935', secondary:'#fff' } },
         }} />
         <Routes>
-          <Route path="/login" element={<Public><Login /></Public>} />
+          <Route path="/login"    element={<Public><Login /></Public>} />
+          <Route path="/register" element={<Public><Register /></Public>} />
           <Route path="/" element={<Private><AppLayout /></Private>}>
             <Route index                element={<Dashboard />} />
             <Route path="parties"       element={<Parties />} />
