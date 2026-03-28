@@ -1,10 +1,13 @@
 import client from './client';
 
 export const authAPI = {
-  sendOtp:   (phone)            => client.post('/api/auth/send-otp',   { phone }),
-  verifyOtp: (phone, otp)       => client.post('/api/auth/verify-otp', { phone, otp }),
-  me:        ()                 => client.get('/api/auth/me'),
-  update:    d                  => client.put('/api/auth/update', d),
+  sendOtp:            (phone)            => client.post('/api/auth/send-otp',            { phone }),
+  verifyOtp:          (phone, otp)       => client.post('/api/auth/verify-otp',           { phone, otp }),
+  sendRegisterOtp:    (phone, name, businessName) =>
+                        client.post('/api/auth/send-register-otp', { phone, name, businessName }),
+  verifyRegisterOtp:  (phone, otp)       => client.post('/api/auth/verify-register-otp',  { phone, otp }),
+  me:                 ()                 => client.get('/api/auth/me'),
+  update:             d                  => client.put('/api/auth/update', d),
 };
 
 export const categoryAPI = {
