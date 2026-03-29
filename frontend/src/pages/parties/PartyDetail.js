@@ -97,7 +97,7 @@ export default function PartyDetail() {
               {party.phone || ''}
             </p>
           </div>
-          <button onClick={() => { setShowMenu(true); setEditForm({ name:party.name, categoryId:cat?._id||'', phone:party.phone||'', email:party.email||'', address:party.address||'', notes:party.notes||'' }); }}
+          <button onClick={() => { setShowMenu(true); setEditForm({ name:party.name, categoryId:cat?._id||'', phone:party.phone||'', address:party.address||'', notes:party.notes||'' }); }}
             style={{ background:'rgba(255,255,255,.15)', borderRadius:10, padding:'7px 11px', color:'white', fontSize:18 }}>⋮</button>
         </div>
 
@@ -191,7 +191,7 @@ export default function PartyDetail() {
                 {cats.map(c => <option key={c._id} value={c._id}>{c.icon} {c.name}</option>)}
               </select>
             </div>
-            {['name','phone','email','address','notes'].map(k => (
+            {['name','phone','address','notes'].map(k => (
               <div className="field" key={k}>
                 <label>{k.charAt(0).toUpperCase()+k.slice(1)}{k==='name'?' *':''}</label>
                 {k==='notes' ? <textarea rows={2} value={editForm[k]||''} onChange={e=>setEditForm(f=>({...f,[k]:e.target.value}))}/>
