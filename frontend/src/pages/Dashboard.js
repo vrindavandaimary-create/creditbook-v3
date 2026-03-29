@@ -176,7 +176,7 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
             <div className="spinner"><div className="spin"/></div>
           ) : parties.length === 0 ? (
             <div className="empty" style={{ paddingTop:32 }}>
-              <div className="ico">👥</div>
+              <div className="ico"></div>
               <h3>No parties yet</h3>
               <p>Add a party to this category</p>
             </div>
