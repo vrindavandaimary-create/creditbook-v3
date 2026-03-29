@@ -5,13 +5,14 @@ import { dashAPI, categoryAPI, partyAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { fmt, fmtDate, avatarColor, avatarLetter, balanceClass } from '../utils/helpers';
 
+const ICON_OPTIONS  = ['👥','🏪','🤝','👨‍👩‍👧','💼','🏢','👷','🌟','💰','📦','🎯','🏠'];
 const COLOR_OPTIONS = ['#1a4fd6','#1a9e5c','#e53935','#f57c00','#7b1fa2','#0097a7','#c62828','#558b2f','#ad1457','#283593'];
 
 /* ── Category form sheet ── */
 function CategoryFormSheet({ onClose, onDone, existing }) {
   const [name,   setName]   = useState(existing?.name  || '');
   const [color,  setColor]  = useState(existing?.color || COLOR_OPTIONS[0]);
-  const [icon,   setIcon]   = useState(existing?.icon  || '👥');
+  const [icon,   setIcon]   = useState(existing?.icon  || ICON_OPTIONS[0]);
   const [saving, setSaving] = useState(false);
 
   const submit = async e => {
@@ -40,7 +41,16 @@ function CategoryFormSheet({ onClose, onDone, existing }) {
             <label>Category Name *</label>
             <input placeholder="e.g. Customers, Suppliers…" value={name} onChange={e => setName(e.target.value)} autoFocus />
           </div>
-
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', marginBottom:8 }}>Icon</p>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:14 }}>
+            {ICON_OPTIONS.map(ic => (
+              <button key={ic} type="button" onClick={() => setIcon(ic)} style={{
+                width:38, height:38, borderRadius:10, fontSize:20,
+                border:`2px solid ${ic===icon?'var(--blue)':'var(--border)'}`,
+                background: ic===icon?'var(--blue-lt)':'white', cursor:'pointer'
+              }}>{ic}</button>
+            ))}
+          </div>
           <p style={{ fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', marginBottom:8 }}>Color</p>
           <div style={{ display:'flex', gap:8, marginBottom:18, flexWrap:'wrap' }}>
             {COLOR_OPTIONS.map(c => (
@@ -176,7 +186,7 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
             <div className="spinner"><div className="spin"/></div>
           ) : parties.length === 0 ? (
             <div className="empty" style={{ paddingTop:32 }}>
-              <div className="ico"></div>
+              <div className="ico">👥</div>
               <h3>No parties yet</h3>
               <p>Add a party to this category</p>
             </div>
