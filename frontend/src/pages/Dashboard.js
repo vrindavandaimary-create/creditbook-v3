@@ -124,20 +124,33 @@ function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
 
 /* ── Category Parties Sheet — shown when user taps a category ── */
 function CategoryPartiesSheet({ cat, onClose, navigate }) {
-  const [parties, setParties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [parties,    setParties]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [confirmDel, setConfirmDel] = useState(null);
 
-  useEffect(() => {
+  const load = () => {
     partyAPI.getAll({ categoryId: cat._id })
       .then(r => setParties(r.data.data || []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [cat._id]);
+  };
+
+  useEffect(() => { load(); }, [cat._id]);
+
+  const deleteParty = async (party) => {
+    try {
+      await partyAPI.delete(party._id);
+      toast.success(`${party.name} deleted`);
+      setConfirmDel(null);
+      load();
+    } catch { toast.error('Failed to delete'); }
+  };
 
   const toGet  = parties.filter(p=>p.balance>0).reduce((s,p)=>s+p.balance,0);
   const toGive = parties.filter(p=>p.balance<0).reduce((s,p)=>s+Math.abs(p.balance),0);
 
   return (
+    <>
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e => e.stopPropagation()}
         style={{ maxHeight:'82vh', display:'flex', flexDirection:'column', padding:0, overflow:'hidden' }}>
@@ -179,17 +192,27 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
             </div>
           ) : (
             parties.map(p => (
-              <div key={p._id} onClick={() => { onClose(); navigate(`/parties/${p._id}`); }}
-                style={{ padding:'13px 18px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12, cursor:'pointer', background:'white' }}>
-                <div className="avatar av-sm" style={{ background: avatarColor(p.name) }}>{avatarLetter(p.name)}</div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ fontWeight:700, fontSize:15, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</p>
-                  {p.phone && <p style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>{p.phone}</p>}
+              <div key={p._id}
+                style={{ padding:'13px 18px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12, background:'white' }}>
+                {/* Main row → navigate */}
+                <div style={{ display:'flex', alignItems:'center', gap:12, flex:1, cursor:'pointer' }}
+                  onClick={() => { onClose(); navigate(`/parties/${p._id}`); }}>
+                  <div className="avatar av-sm" style={{ background: avatarColor(p.name) }}>{avatarLetter(p.name)}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ fontWeight:700, fontSize:15, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</p>
+                    {p.phone && <p style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>{p.phone}</p>}
+                  </div>
+                  <div style={{ textAlign:'right', flexShrink:0 }}>
+                    <p className={balanceClass(p.balance)} style={{ fontSize:15 }}>₹{fmt(Math.abs(p.balance),0)}</p>
+                    <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{p.balance>0?'to get':p.balance<0?'to give':'settled'}</p>
+                  </div>
                 </div>
-                <div style={{ textAlign:'right', flexShrink:0 }}>
-                  <p className={balanceClass(p.balance)} style={{ fontSize:15 }}>₹{fmt(Math.abs(p.balance),0)}</p>
-                  <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{p.balance>0?'to get':p.balance<0?'to give':'settled'}</p>
-                </div>
+                {/* Delete button */}
+                <button
+                  onClick={e => { e.stopPropagation(); setConfirmDel(p); }}
+                  style={{ flexShrink:0, width:32, height:32, borderRadius:8, background:'var(--red-lt)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15 }}>
+                  🗑️
+                </button>
               </div>
             ))
           )}
@@ -204,6 +227,23 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
         </div>
       </div>
     </div>
+
+    {/* Delete confirm sheet */}
+    {confirmDel && (
+      <div className="overlay" onClick={() => setConfirmDel(null)}>
+        <div className="sheet" onClick={e => e.stopPropagation()}>
+          <h3 style={{ fontWeight:800, marginBottom:6 }}>Delete "{confirmDel.name}"?</h3>
+          <p style={{ fontSize:13, color:'var(--text2)', marginBottom:20 }}>
+            This permanently deletes this party and all their transactions.
+          </p>
+          <div style={{ display:'flex', gap:10 }}>
+            <button className="btn btn-ghost btn-full" onClick={() => setConfirmDel(null)}>Cancel</button>
+            <button className="btn btn-red btn-full" onClick={() => deleteParty(confirmDel)}>Delete</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
