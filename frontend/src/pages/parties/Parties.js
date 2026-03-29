@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { partyAPI, categoryAPI } from '../../api';
 import { fmt, avatarColor, avatarLetter, balanceClass } from '../../utils/helpers';
 
@@ -12,13 +13,14 @@ export default function Parties() {
   const [selCat,     setSelCat]     = useState(initCat);
   const [search,     setSearch]     = useState('');
   const [loading,    setLoading]    = useState(true);
+  const [confirmDel, setConfirmDel] = useState(null); // party to delete
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
-      if (selCat)  params.categoryId = selCat;
-      if (search)  params.search     = search;
+      if (selCat) params.categoryId = selCat;
+      if (search) params.search     = search;
       const [pR, cR] = await Promise.all([
         partyAPI.getAll(params),
         categoryAPI.getAll(),
@@ -30,6 +32,15 @@ export default function Parties() {
   }, [selCat, search]);
 
   useEffect(() => { load(); }, [load]);
+
+  const deleteParty = async (party) => {
+    try {
+      await partyAPI.delete(party._id);
+      toast.success(`${party.name} deleted`);
+      setConfirmDel(null);
+      load();
+    } catch { toast.error('Failed to delete'); }
+  };
 
   const totalToGet  = parties.filter(p=>p.balance>0).reduce((s,p)=>s+p.balance,0);
   const totalToGive = parties.filter(p=>p.balance<0).reduce((s,p)=>s+Math.abs(p.balance),0);
@@ -53,8 +64,8 @@ export default function Parties() {
       <div style={{ padding:'14px 14px 0' }}>
         <div className="searchbar">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input placeholder="Search parties…" value={search} onChange={e=>setSearch(e.target.value)}/>
-          {search && <button onClick={()=>setSearch('')} style={{ fontSize:18, color:'var(--text3)' }}>×</button>}
+          <input placeholder="Search parties…" value={search} onChange={e => setSearch(e.target.value)}/>
+          {search && <button onClick={() => setSearch('')} style={{ fontSize:18, color:'var(--text3)' }}>×</button>}
         </div>
 
         {/* Category filter chips */}
@@ -74,19 +85,25 @@ export default function Parties() {
           : parties.length === 0 ? (
             <div className="empty"><div className="ico">👥</div><h3>No parties found</h3><p>Tap below to add a party</p></div>
           ) : parties.map(p => (
-            <div key={p._id} className="list-item" onClick={() => navigate(`/parties/${p._id}`)}>
-              <div className="avatar" style={{ background: avatarColor(p.name) }}>{avatarLetter(p.name)}</div>
-              <div className="li-info">
-                <h3>{p.name}</h3>
-                <p>
-                  {p.categoryId?.icon} {p.categoryId?.name}
-                  {p.phone ? ` · ${p.phone}` : ''}
-                </p>
+            <div key={p._id} className="list-item" style={{ cursor:'pointer' }}>
+              {/* Main area → go to detail */}
+              <div style={{ display:'flex', alignItems:'center', gap:12, flex:1 }} onClick={() => navigate(`/parties/${p._id}`)}>
+                <div className="avatar" style={{ background: avatarColor(p.name) }}>{avatarLetter(p.name)}</div>
+                <div className="li-info">
+                  <h3>{p.name}</h3>
+                  <p>{p.categoryId?.icon} {p.categoryId?.name}{p.phone ? ` · ${p.phone}` : ''}</p>
+                </div>
+                <div className="li-right">
+                  <p className={balanceClass(p.balance)} style={{ fontSize:15 }}>₹{fmt(Math.abs(p.balance),0)}</p>
+                  <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{p.balance>0?'to get':p.balance<0?'to give':'settled'}</p>
+                </div>
               </div>
-              <div className="li-right">
-                <p className={balanceClass(p.balance)} style={{ fontSize:15 }}>₹{fmt(Math.abs(p.balance),0)}</p>
-                <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{p.balance>0?'to get':p.balance<0?'to give':'settled'}</p>
-              </div>
+              {/* Delete button */}
+              <button
+                onClick={e => { e.stopPropagation(); setConfirmDel(p); }}
+                style={{ marginLeft:8, flexShrink:0, width:32, height:32, borderRadius:8, background:'var(--red-lt)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15 }}>
+                🗑️
+              </button>
             </div>
           ))
         }
@@ -96,6 +113,22 @@ export default function Parties() {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
         ADD PARTY
       </button>
+
+      {/* Delete confirmation sheet */}
+      {confirmDel && (
+        <div className="overlay" onClick={() => setConfirmDel(null)}>
+          <div className="sheet" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontWeight:800, marginBottom:6 }}>Delete "{confirmDel.name}"?</h3>
+            <p style={{ fontSize:13, color:'var(--text2)', marginBottom:20 }}>
+              This permanently deletes this party and all their transactions. This cannot be undone.
+            </p>
+            <div style={{ display:'flex', gap:10 }}>
+              <button className="btn btn-ghost btn-full" onClick={() => setConfirmDel(null)}>Cancel</button>
+              <button className="btn btn-red btn-full" onClick={() => deleteParty(confirmDel)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
