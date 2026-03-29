@@ -5,7 +5,6 @@ const partySchema = new mongoose.Schema({
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
   name:       { type: String, required: true, trim: true },
   phone:      { type: String, default: '', trim: true },
-  email:      { type: String, default: '', trim: true, lowercase: true },
   address:    { type: String, default: '', trim: true },
   notes:      { type: String, default: '' },
   balance:    { type: Number, default: 0 },
