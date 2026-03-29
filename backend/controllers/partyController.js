@@ -24,15 +24,17 @@ const getParty = async (req, res) => {
 
 const createParty = async (req, res) => {
   try {
-    const { name, categoryId, phone, email, address, notes } = req.body;
+    const { name, categoryId, phone, address, notes } = req.body;
     if (!name?.trim())  return res.status(400).json({ success: false, message: 'Name is required.' });
     if (!categoryId)    return res.status(400).json({ success: false, message: 'Category is required.' });
     const cat = await Category.findOne({ _id: categoryId, userId: req.user._id });
     if (!cat) return res.status(404).json({ success: false, message: 'Category not found.' });
     const party = await Party.create({
       userId: req.user._id, categoryId,
-      name: name.trim(), phone: phone?.trim() || '', email: email?.trim() || '',
-      address: address?.trim() || '', notes: notes?.trim() || ''
+      name: name.trim(),
+      phone: phone?.trim() || '',
+      address: address?.trim() || '',
+      notes: notes?.trim() || ''
     });
     const populated = await Party.findById(party._id).populate('categoryId','name color icon');
     res.status(201).json({ success: true, data: populated });
@@ -41,7 +43,7 @@ const createParty = async (req, res) => {
 
 const updateParty = async (req, res) => {
   try {
-    const allowed = ['name','categoryId','phone','email','address','notes'];
+    const allowed = ['name','categoryId','phone','address','notes'];
     const updates = {};
     allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
     if (updates.name) updates.name = updates.name.trim();
@@ -49,8 +51,9 @@ const updateParty = async (req, res) => {
       const cat = await Category.findOne({ _id: updates.categoryId, userId: req.user._id });
       if (!cat) return res.status(404).json({ success: false, message: 'Category not found.' });
     }
-    const party = await Party.findOneAndUpdate({ _id: req.params.id, userId: req.user._id }, updates, { new: true })
-      .populate('categoryId','name color icon');
+    const party = await Party.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id }, updates, { new: true }
+    ).populate('categoryId','name color icon');
     if (!party) return res.status(404).json({ success: false, message: 'Party not found.' });
     res.json({ success: true, data: party });
   } catch(e) { res.status(500).json({ success: false, message: e.message }); }
