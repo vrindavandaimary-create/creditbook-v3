@@ -6,4 +6,4 @@ export const fmtDate     = d => d ? new Date(d).toLocaleDateString('en-IN',{day:
 export const fmtDateTime = d => d ? new Date(d).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
 export const todayStr    = () => new Date().toISOString().split('T')[0];
 export const balanceLabel = b => b > 0 ? 'to get' : b < 0 ? 'to give' : 'settled';
-export const balanceClass = b => b > 0 ? 'amt-get' : b < 0 ? 'amt-give' : 'amt-zero';
+export const balanceClass = b => b > 0 ? 'amt-pos' : b < 0 ? 'amt-neg' : 'amt-zero';
