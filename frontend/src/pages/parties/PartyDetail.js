@@ -19,6 +19,7 @@ export default function PartyDetail() {
   const [txForm,   setTxForm]   = useState({ amount:'', note:'', date:todayStr() });
   const [saving,   setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelTx, setConfirmDelTx] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -51,8 +52,7 @@ export default function PartyDetail() {
   };
 
   const delTx = async txId => {
-    if (!window.confirm('Delete this entry?')) return;
-    try { await txAPI.delete(txId); toast.success('Deleted'); load(); }
+    try { await txAPI.delete(txId); toast.success('Deleted'); setConfirmDelTx(null); load(); }
     catch { toast.error('Failed'); }
   };
 
@@ -122,11 +122,11 @@ export default function PartyDetail() {
                   <p style={{ fontSize:11, color:'var(--text4)', marginTop:2 }}>Balance: ₹{fmt(tx.balanceAfter||0,2)}</p>
                 </div>
                 <div style={{ textAlign:'right', marginLeft:10, flexShrink:0 }}>
-                  <p className={tx.type==='got'?'amt-pos':'amt-neg'} style={{ fontSize:16 }}>
+                  <p style={{ fontSize:16, fontWeight:800, color: tx.type==='got'?'var(--green)':'var(--red)' }} style={{ fontSize:16 }}>
                     {tx.type==='got'?'+':'-'}₹{fmt(tx.amount,2)}
                   </p>
                   <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{tx.type==='got'?'You received':'You gave'}</p>
-                  <button onClick={()=>delTx(tx._id)} style={{ fontSize:10, color:'var(--red)', marginTop:4, padding:'2px 6px', borderRadius:4, background:'var(--bg)', border:'none', cursor:'pointer' }}>Delete</button>
+                  <button onClick={()=>setConfirmDelTx(tx._id)} style={{ fontSize:10, color:'var(--red)', marginTop:4, padding:'2px 6px', borderRadius:4, background:'var(--bg)', border:'none', cursor:'pointer' }}>Delete</button>
                 </div>
               </div>
             ))}
@@ -207,6 +207,18 @@ export default function PartyDetail() {
       )}
 
       {/* Delete confirm */}
+      {confirmDelTx && (
+        <div className="overlay" onClick={() => setConfirmDelTx(null)}>
+          <div className="sheet" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontWeight:800, marginBottom:6 }}>Delete this entry?</h3>
+            <p style={{ fontSize:13, color:'var(--text2)', marginBottom:20 }}>This will reverse the balance and cannot be undone.</p>
+            <div style={{ display:'flex', gap:10 }}>
+              <button className="btn btn-ghost btn-full" onClick={() => setConfirmDelTx(null)}>Cancel</button>
+              <button className="btn btn-red btn-full" onClick={() => delTx(confirmDelTx)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showDel && (
         <div className="overlay" onClick={() => setShowDel(false)}>
           <div className="sheet" onClick={e=>e.stopPropagation()}>
