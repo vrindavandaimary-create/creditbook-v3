@@ -1,13 +1,14 @@
 const Party       = require('../models/Party');
 const Category    = require('../models/Category');
 const Transaction = require('../models/Transaction');
+const Bill        = require('../models/Bill');
 
 const getParties = async (req, res) => {
   try {
     const { categoryId, search } = req.query;
     const q = { userId: req.user._id, isActive: true };
     if (categoryId) q.categoryId = categoryId;
-    if (search)     q.name = { $regex: search, $options: 'i' };
+    if (search)     q.name = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
     const data = await Party.find(q).populate('categoryId','name color icon').sort({ updatedAt: -1 }).lean();
     res.json({ success: true, count: data.length, data });
   } catch(e) { res.status(500).json({ success: false, message: e.message }); }
@@ -31,10 +32,8 @@ const createParty = async (req, res) => {
     if (!cat) return res.status(404).json({ success: false, message: 'Category not found.' });
     const party = await Party.create({
       userId: req.user._id, categoryId,
-      name: name.trim(),
-      phone: phone?.trim() || '',
-      address: address?.trim() || '',
-      notes: notes?.trim() || ''
+      name: name.trim(), phone: phone?.trim() || '',
+      address: address?.trim() || '', notes: notes?.trim() || '',
     });
     const populated = await Party.findById(party._id).populate('categoryId','name color icon');
     res.status(201).json({ success: true, data: populated });
@@ -63,7 +62,11 @@ const deleteParty = async (req, res) => {
   try {
     const party = await Party.findOne({ _id: req.params.id, userId: req.user._id });
     if (!party) return res.status(404).json({ success: false, message: 'Party not found.' });
-    await Transaction.deleteMany({ partyId: req.params.id });
+    /* ── Fix P0: delete transactions AND bills to avoid orphans ── */
+    await Promise.all([
+      Transaction.deleteMany({ partyId: req.params.id }),
+      Bill.deleteMany({ partyId: req.params.id }),
+    ]);
     await Party.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Party deleted.' });
   } catch(e) { res.status(500).json({ success: false, message: e.message }); }
