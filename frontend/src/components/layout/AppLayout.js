@@ -13,9 +13,10 @@ const NAV = [
       <circle cx="19" cy="7" r="3"/><path d="M22 21v-1a5 5 0 00-4-4.9"/>
     </svg>
   )},
-  { path:'/reports', label:'Reports', icon: a => (
+  { path:'/reports', label:'Analytics', icon: a => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2.5:2} strokeLinecap="round">
-      <path d="M18 20V10M12 20V4M6 20v-6"/>
+      <path d="M21 21H4.6A1.6 1.6 0 013 19.4V3"/>
+      <path d="M7 14l4-4 4 4 4-4"/>
     </svg>
   )},
   { path:'/more', label:'More', icon: a => (
@@ -28,9 +29,9 @@ const NAV = [
 ];
 
 export default function AppLayout() {
-  const navigate  = useNavigate();
+  const navigate     = useNavigate();
   const { pathname } = useLocation();
-  const isActive  = p => p==='/' ? pathname==='/' : pathname.startsWith(p);
+  const isActive     = p => p==='/' ? pathname==='/' : pathname.startsWith(p);
 
   return (
     <div style={{ maxWidth:'var(--maxw)', margin:'0 auto', minHeight:'100vh', background:'var(--bg)', position:'relative' }}>
