@@ -13,7 +13,7 @@ const NAV = [
       <circle cx="19" cy="7" r="3"/><path d="M22 21v-1a5 5 0 00-4-4.9"/>
     </svg>
   )},
-  { path:'/Analytics', label:'Analytics', icon: a => (
+  { path:'/reports', label:'Analytics', icon: a => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2.5:2} strokeLinecap="round">
       <path d="M21 21H4.6A1.6 1.6 0 013 19.4V3"/>
       <path d="M7 14l4-4 4 4 4-4"/>
