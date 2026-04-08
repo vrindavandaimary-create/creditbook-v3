@@ -27,7 +27,11 @@ const addTransaction = async (req, res) => {
       userId: req.user._id, partyId, type,
       amount: +n.toFixed(2),
       note:   note?.trim() || '',
-      date:   date ? new Date(date) : new Date(),
+      date:   date ? (() => {
+        // date-only strings (YYYY-MM-DD) must be parsed as local time, not UTC
+        // Using T12:00:00 avoids timezone-shift to previous day
+        return date.includes('T') ? new Date(date) : new Date(date + 'T12:00:00');
+      })() : new Date(),
       balanceAfter: +party.balance.toFixed(2),
     });
 
