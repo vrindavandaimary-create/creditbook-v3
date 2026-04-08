@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { dashAPI, categoryAPI, partyAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { fmt, avatarColor, avatarLetter } from '../utils/helpers';
+import { fmt, fmtDate, avatarColor, avatarLetter, balanceClass } from '../utils/helpers';
 
+const ICON_OPTIONS  = ['👥','🏪','🤝','👨‍👩‍👧','💼','🏢','👷','🌟','💰','📦','🎯','🏠'];
 const COLOR_OPTIONS = ['#1a4fd6','#1a9e5c','#e53935','#f57c00','#7b1fa2','#0097a7','#c62828','#558b2f','#ad1457','#283593'];
 
 /* ── Category form sheet ── */
 function CategoryFormSheet({ onClose, onDone, existing }) {
   const [name,   setName]   = useState(existing?.name  || '');
   const [color,  setColor]  = useState(existing?.color || COLOR_OPTIONS[0]);
-  const [icon,   setIcon]   = useState(existing?.icon  || '🏷️');
+  const [icon,   setIcon]   = useState(existing?.icon  || ICON_OPTIONS[0]);
   const [saving, setSaving] = useState(false);
 
   const submit = async e => {
@@ -40,7 +41,16 @@ function CategoryFormSheet({ onClose, onDone, existing }) {
             <label>Category Name *</label>
             <input placeholder="e.g. Customers, Suppliers…" value={name} onChange={e => setName(e.target.value)} autoFocus />
           </div>
-
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', marginBottom:8 }}>Icon</p>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:14 }}>
+            {ICON_OPTIONS.map(ic => (
+              <button key={ic} type="button" onClick={() => setIcon(ic)} style={{
+                width:38, height:38, borderRadius:10, fontSize:20,
+                border:`2px solid ${ic===icon?'var(--blue)':'var(--border)'}`,
+                background: ic===icon?'var(--blue-lt)':'white', cursor:'pointer'
+              }}>{ic}</button>
+            ))}
+          </div>
           <p style={{ fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', marginBottom:8 }}>Color</p>
           <div style={{ display:'flex', gap:8, marginBottom:18, flexWrap:'wrap' }}>
             {COLOR_OPTIONS.map(c => (
@@ -160,12 +170,12 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
           {/* Balance summary */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
             <div style={{ background:'var(--red-lt)', borderRadius:10, padding:'8px 12px' }}>
-              <p style={{ fontSize:10, color:'var(--green)', fontWeight:700, marginBottom:2 }}>💰 TO GET</p>
-              <p style={{ fontSize:16, fontWeight:800, color:'var(--green)' }}>₹{fmt(toGet,0)}</p>
+              <p style={{ fontSize:10, color:'var(--red)', fontWeight:700, marginBottom:2 }}>💰 TO GET</p>
+              <p style={{ fontSize:16, fontWeight:800, color:'var(--red)' }}>₹{fmt(toGet,0)}</p>
             </div>
             <div style={{ background:'var(--blue-lt)', borderRadius:10, padding:'8px 12px' }}>
-              <p style={{ fontSize:10, color:'var(--red)', fontWeight:700, marginBottom:2 }}>💸 TO GIVE</p>
-              <p style={{ fontSize:16, fontWeight:800, color:'var(--red)' }}>₹{fmt(toGive,0)}</p>
+              <p style={{ fontSize:10, color:'var(--blue)', fontWeight:700, marginBottom:2 }}>💸 TO GIVE</p>
+              <p style={{ fontSize:16, fontWeight:800, color:'var(--blue)' }}>₹{fmt(toGive,0)}</p>
             </div>
           </div>
         </div>
@@ -176,7 +186,7 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
             <div className="spinner"><div className="spin"/></div>
           ) : parties.length === 0 ? (
             <div className="empty" style={{ paddingTop:32 }}>
-              <div className="ico">🤝</div>
+              <div className="ico">👥</div>
               <h3>No parties yet</h3>
               <p>Add a party to this category</p>
             </div>
@@ -193,7 +203,7 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
                     {p.phone && <p style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>{p.phone}</p>}
                   </div>
                   <div style={{ textAlign:'right', flexShrink:0 }}>
-                    <p style={{ fontSize:15, fontWeight:800, color: p.balance>0?'var(--green)':p.balance<0?'var(--red)':'var(--text3)' }}>₹{fmt(Math.abs(p.balance),0)}</p>
+                    <p className={balanceClass(p.balance)} style={{ fontSize:15 }}>₹{fmt(Math.abs(p.balance),0)}</p>
                     <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{p.balance>0?'to get':p.balance<0?'to give':'settled'}</p>
                   </div>
                 </div>
@@ -362,7 +372,29 @@ export default function Dashboard() {
           </div>
         )}
 
-
+        {/* Recent Transactions */}
+        {d.recentTransactions?.length > 0 && (
+          <>
+            <p className="sec-title" style={{ marginTop:4 }}>Recent Transactions</p>
+            <div className="card" style={{ overflow:'hidden', marginBottom:16 }}>
+              {d.recentTransactions.slice(0,6).map(tx => (
+                <div key={tx._id} className="tx-item">
+                  <div style={{ flex:1 }}>
+                    <p style={{ fontWeight:700, fontSize:14 }}>{tx.partyId?.name||'—'}</p>
+                    <p className="tx-date">{fmtDate(tx.date)}</p>
+                    {tx.note && <p className="tx-note">{tx.note}</p>}
+                  </div>
+                  <div style={{ textAlign:'right' }}>
+                    <p className={tx.type==='got'?'amt-pos':'amt-neg'} style={{ fontSize:15 }}>
+                      {tx.type==='got'?'+':'-'}₹{fmt(tx.amount,2)}
+                    </p>
+                    <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{tx.type==='got'?'Received':'Given'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Sheets */}
