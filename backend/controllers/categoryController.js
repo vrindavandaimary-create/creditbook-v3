@@ -44,7 +44,7 @@ const createCategory = async (req, res) => {
       userId: req.user._id,
       name:   name.trim(),
       color:  color || '#1a4fd6',
-      icon:   icon  || '👥',
+      icon:   icon  || '🏷️',
     });
     res.status(201).json({ success: true, data: { ...cat.toObject(), partyCount: 0, toGet: 0, toGive: 0 } });
   } catch(e) {
