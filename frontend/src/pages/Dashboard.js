@@ -11,7 +11,7 @@ const COLOR_OPTIONS = ['#1a4fd6','#1a9e5c','#e53935','#f57c00','#7b1fa2','#0097a
 function CategoryFormSheet({ onClose, onDone, existing }) {
   const [name,   setName]   = useState(existing?.name  || '');
   const [color,  setColor]  = useState(existing?.color || COLOR_OPTIONS[0]);
-  const [icon,   setIcon]   = useState(existing?.icon  || '👥');
+  const [icon,   setIcon]   = useState(existing?.icon  || '🏷️');
   const [saving, setSaving] = useState(false);
 
   const submit = async e => {
@@ -176,7 +176,7 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
             <div className="spinner"><div className="spin"/></div>
           ) : parties.length === 0 ? (
             <div className="empty" style={{ paddingTop:32 }}>
-              <div className="ico">👥</div>
+              <div className="ico">🤝</div>
               <h3>No parties yet</h3>
               <p>Add a party to this category</p>
             </div>
