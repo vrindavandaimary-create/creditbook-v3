@@ -28,9 +28,12 @@ const addTransaction = async (req, res) => {
       amount: +n.toFixed(2),
       note:   note?.trim() || '',
       date:   date ? (() => {
-        // date-only strings (YYYY-MM-DD) must be parsed as local time, not UTC
-        // Using T12:00:00 avoids timezone-shift to previous day
-        return date.includes('T') ? new Date(date) : new Date(date + 'T12:00:00');
+        // If it's a full ISO string, use as-is
+        if (date.includes('T')) return new Date(date);
+        // Date-only (YYYY-MM-DD): combine with current local time to preserve exact moment
+        const now = new Date();
+        const [y,m,d] = date.split('-').map(Number);
+        return new Date(y, m-1, d, now.getHours(), now.getMinutes(), now.getSeconds());
       })() : new Date(),
       balanceAfter: +party.balance.toFixed(2),
     });
