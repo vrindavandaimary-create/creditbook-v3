@@ -65,9 +65,9 @@ Owner: ${req.user.name} | Business: ${req.user.businessName}
 💰 Total to GET: ₹${totalToGet.toFixed(2)}
 💸 Total to GIVE: ₹${totalToGive.toFixed(2)}
 📊 Net Balance: ₹${netBalance.toFixed(2)} (${netBalance>=0?'POSITIVE':'NEGATIVE'})
-👥 Total Parties: ${parties.length} across ${categories.length} categories
+👤 Total Parties: ${parties.length} across ${categories.length} categories
 📋 Categories: ${categoryStats.map(c=>`${c.icon}${c.name}(${c.count} parties, GET:₹${c.toGet}, GIVE:₹${c.toGive})`).join(' | ')||'none'}
-👥 All Parties: ${partyList||'none'}
+👤 All Parties: ${partyList||'none'}
 🏆 Top debtors: ${topDebtors.map(p=>`${p.name}:₹${p.balance.toFixed(0)}`).join(', ')||'none'}
 📤 Top creditors: ${topCreditors.map(p=>`${p.name}:₹${Math.abs(p.balance).toFixed(0)}`).join(', ')||'none'}
 📅 Monthly trend (accurate): ${monthlySummary.map(m=>`${m.label}(in:₹${m.received},out:₹${m.given})`).join(', ')}
@@ -162,7 +162,7 @@ async function executeIntent(intent, userId, parties, categories) {
       if (!intent.name?.trim()) return null;
       let cat = categories.find(c => c.name.toLowerCase() === intent.category?.toLowerCase?.());
       if (!cat && intent.category) {
-        cat = await require('../models/Category').create({ userId, name: intent.category.trim(), color:'#1a4fd6', icon:'👥' });
+        cat = await require('../models/Category').create({ userId, name: intent.category.trim(), color:'#1a4fd6', icon:'🏷️' });
         categories.push(cat);
       }
       if (!cat) return { message: `❌ Category "${intent.category}" not found.`, success: false };
@@ -171,7 +171,7 @@ async function executeIntent(intent, userId, parties, categories) {
     }
     if (intent.intent === 'create_category') {
       if (!intent.name?.trim()) return null;
-      const cat = await require('../models/Category').create({ userId, name: intent.name.trim(), color:'#1a4fd6', icon:'👥' });
+      const cat = await require('../models/Category').create({ userId, name: intent.name.trim(), color:'#1a4fd6', icon:'🏷️' });
       return { message: `✅ Category "${cat.name}" created!`, success: true, refresh: true };
     }
     return null;
