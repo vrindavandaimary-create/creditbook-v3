@@ -229,12 +229,6 @@ export default function Analytics() {
     return [];
   })();
 
-  /* Top parties */
-  const topParties = [...parties]
-    .filter(p => p.balance !== 0)
-    .sort((a,b) => Math.abs(b.balance) - Math.abs(a.balance))
-    .slice(0, 5);
-
   return (
     <div style={{ background:'var(--bg)', minHeight:'100vh', paddingBottom:90 }}>
 
@@ -336,32 +330,6 @@ export default function Analytics() {
             </select>
           </div>
         </div>
-
-        {/* Top parties */}
-        {topParties.length > 0 && (
-          <>
-            <p className="sec-title">Top Parties by Balance</p>
-            <div className="card" style={{ overflow:'hidden', marginBottom:14 }}>
-              {topParties.map(p => {
-                const maxBal = Math.abs(topParties[0].balance);
-                const pct    = (Math.abs(p.balance) / maxBal) * 100;
-                return (
-                  <div key={p._id} style={{ padding:'10px 14px', borderBottom:'1px solid var(--border)' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
-                      <p style={{ fontWeight:700, fontSize:13 }}>{p.name}</p>
-                      <p style={{ fontWeight:800, fontSize:13, color: p.balance>0?'var(--red)':'var(--blue)' }}>
-                        {p.balance>0?'GET':'GIVE'} ₹{fmt(Math.abs(p.balance),0)}
-                      </p>
-                    </div>
-                    <div style={{ background:'var(--border)', borderRadius:4, height:5 }}>
-                      <div style={{ width:`${pct}%`, height:'100%', borderRadius:4, background: p.balance>0?'var(--red)':'var(--blue)', transition:'width .4s' }}/>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
 
         {/* Transaction list */}
         <p className="sec-title">{txs.length} Transactions</p>
