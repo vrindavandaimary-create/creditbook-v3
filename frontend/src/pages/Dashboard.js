@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { dashAPI, categoryAPI, partyAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { fmt, fmtDate, avatarColor, avatarLetter, balanceClass } from '../utils/helpers';
+import { fmt, avatarColor, avatarLetter } from '../utils/helpers';
 
 const COLOR_OPTIONS = ['#1a4fd6','#1a9e5c','#e53935','#f57c00','#7b1fa2','#0097a7','#c62828','#558b2f','#ad1457','#283593'];
 
@@ -362,29 +362,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Recent Transactions */}
-        {d.recentTransactions?.length > 0 && (
-          <>
-            <p className="sec-title" style={{ marginTop:4 }}>Recent Transactions</p>
-            <div className="card" style={{ overflow:'hidden', marginBottom:16 }}>
-              {d.recentTransactions.slice(0,6).map(tx => (
-                <div key={tx._id} className="tx-item">
-                  <div style={{ flex:1 }}>
-                    <p style={{ fontWeight:700, fontSize:14 }}>{tx.partyId?.name||'—'}</p>
-                    <p className="tx-date">{fmtDate(tx.date)}</p>
-                    {tx.note && <p className="tx-note">{tx.note}</p>}
-                  </div>
-                  <div style={{ textAlign:'right' }}>
-                    <p className={tx.type==='got'?'amt-pos':'amt-neg'} style={{ fontSize:15 }}>
-                      {tx.type==='got'?'+':'-'}₹{fmt(tx.amount,2)}
-                    </p>
-                    <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{tx.type==='got'?'Received':'Given'}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+
       </div>
 
       {/* Sheets */}
