@@ -4,6 +4,16 @@ import toast from 'react-hot-toast';
 import { partyAPI, categoryAPI } from '../../api';
 import { fmt, avatarColor, avatarLetter, balanceClass } from '../../utils/helpers';
 
+/* ── Debounce hook ── */
+function useDebounce(value, delay = 400) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
 export default function Parties() {
   const navigate = useNavigate();
   const [sp] = useSearchParams();
@@ -13,14 +23,17 @@ export default function Parties() {
   const [selCat,     setSelCat]     = useState(initCat);
   const [search,     setSearch]     = useState('');
   const [loading,    setLoading]    = useState(true);
-  const [confirmDel, setConfirmDel] = useState(null); // party to delete
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [deleting,   setDeleting]   = useState(false);
+
+  const debouncedSearch = useDebounce(search, 400);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
-      if (selCat) params.categoryId = selCat;
-      if (search) params.search     = search;
+      if (selCat)          params.categoryId = selCat;
+      if (debouncedSearch) params.search     = debouncedSearch;
       const [pR, cR] = await Promise.all([
         partyAPI.getAll(params),
         categoryAPI.getAll(),
@@ -29,17 +42,19 @@ export default function Parties() {
       setCategories(cR.data.data || []);
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
-  }, [selCat, search]);
+  }, [selCat, debouncedSearch]);
 
   useEffect(() => { load(); }, [load]);
 
   const deleteParty = async (party) => {
+    setDeleting(true);
     try {
       await partyAPI.delete(party._id);
       toast.success(`${party.name} deleted`);
       setConfirmDel(null);
       load();
     } catch { toast.error('Failed to delete'); }
+    finally { setDeleting(false); }
   };
 
   const totalToGet  = parties.filter(p=>p.balance>0).reduce((s,p)=>s+p.balance,0);
@@ -48,15 +63,15 @@ export default function Parties() {
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)', paddingBottom:90 }}>
       <div className="grad-blue" style={{ padding:'18px 16px 0', color:'white' }}>
-        <h2 style={{ fontSize:20, fontWeight:800, marginBottom:14 }}>👥 All Parties</h2>
+        <h2 style={{ fontSize:20, fontWeight:800, marginBottom:14 }}>All Parties</h2>
         <div style={{ background:'rgba(255,255,255,.13)', borderRadius:14, padding:'10px 16px', display:'flex', marginBottom:14 }}>
           <div style={{ flex:1, borderRight:'1px solid rgba(255,255,255,.2)', paddingRight:14 }}>
-            <p style={{ fontSize:10, opacity:.75, marginBottom:2 }}>You will give</p>
-            <p style={{ fontSize:19, fontWeight:800 }}>₹{fmt(totalToGive,0)}</p>
+            <p style={{ fontSize:10, opacity:.75, marginBottom:2 }}>You will get</p>
+            <p style={{ fontSize:19, fontWeight:800, color:'#4ade80' }}>₹{fmt(totalToGet,0)}</p>
           </div>
           <div style={{ flex:1, paddingLeft:14 }}>
-            <p style={{ fontSize:10, opacity:.75, marginBottom:2 }}>You will get</p>
-            <p style={{ fontSize:19, fontWeight:800 }}>₹{fmt(totalToGet,0)}</p>
+            <p style={{ fontSize:10, opacity:.75, marginBottom:2 }}>You will give</p>
+            <p style={{ fontSize:19, fontWeight:800, color:'#f87171' }}>₹{fmt(totalToGive,0)}</p>
           </div>
         </div>
       </div>
@@ -68,7 +83,6 @@ export default function Parties() {
           {search && <button onClick={() => setSearch('')} style={{ fontSize:18, color:'var(--text3)' }}>×</button>}
         </div>
 
-        {/* Category filter chips */}
         {categories.length > 0 && (
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
             <button onClick={() => setSelCat('')} style={{ padding:'5px 14px', borderRadius:50, fontSize:12, fontWeight:600, fontFamily:'inherit', cursor:'pointer', border:'1.5px solid var(--border)', background: selCat===''?'var(--blue)':'white', color: selCat===''?'white':'var(--text2)' }}>All</button>
@@ -83,10 +97,13 @@ export default function Parties() {
 
         {loading ? <div className="spinner"><div className="spin"/></div>
           : parties.length === 0 ? (
-            <div className="empty"><div className="ico">👥</div><h3>No parties found</h3><p>Tap below to add a party</p></div>
+            <div className="empty">
+              <div className="ico">🤝</div>
+              <h3>{search ? `No results for "${search}"` : 'No parties found'}</h3>
+              <p>{search ? 'Try a different name' : 'Tap below to add a party'}</p>
+            </div>
           ) : parties.map(p => (
             <div key={p._id} className="list-item" style={{ cursor:'pointer' }}>
-              {/* Main area → go to detail */}
               <div style={{ display:'flex', alignItems:'center', gap:12, flex:1 }} onClick={() => navigate(`/parties/${p._id}`)}>
                 <div className="avatar" style={{ background: avatarColor(p.name) }}>{avatarLetter(p.name)}</div>
                 <div className="li-info">
@@ -94,11 +111,15 @@ export default function Parties() {
                   <p>{p.categoryId?.icon} {p.categoryId?.name}{p.phone ? ` · ${p.phone}` : ''}</p>
                 </div>
                 <div className="li-right">
-                  <p className={balanceClass(p.balance)} style={{ fontSize:15 }}>₹{fmt(Math.abs(p.balance),0)}</p>
-                  <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{p.balance>0?'to get':p.balance<0?'to give':'settled'}</p>
+                  {/* Fixed: green = you receive, red = you owe */}
+                  <p style={{ fontSize:15, fontWeight:800, color: p.balance>0?'var(--green)':p.balance<0?'var(--red)':'var(--text3)' }}>
+                    ₹{fmt(Math.abs(p.balance),0)}
+                  </p>
+                  <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>
+                    {p.balance>0?'to get':p.balance<0?'to give':'settled'}
+                  </p>
                 </div>
               </div>
-              {/* Delete button */}
               <button
                 onClick={e => { e.stopPropagation(); setConfirmDel(p); }}
                 style={{ marginLeft:8, flexShrink:0, width:32, height:32, borderRadius:8, background:'var(--red-lt)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15 }}>
@@ -114,17 +135,18 @@ export default function Parties() {
         ADD PARTY
       </button>
 
-      {/* Delete confirmation sheet */}
       {confirmDel && (
-        <div className="overlay" onClick={() => setConfirmDel(null)}>
+        <div className="overlay" onClick={() => !deleting && setConfirmDel(null)}>
           <div className="sheet" onClick={e => e.stopPropagation()}>
             <h3 style={{ fontWeight:800, marginBottom:6 }}>Delete "{confirmDel.name}"?</h3>
             <p style={{ fontSize:13, color:'var(--text2)', marginBottom:20 }}>
-              This permanently deletes this party and all their transactions. This cannot be undone.
+              This permanently deletes this party and all their transactions. Cannot be undone.
             </p>
             <div style={{ display:'flex', gap:10 }}>
-              <button className="btn btn-ghost btn-full" onClick={() => setConfirmDel(null)}>Cancel</button>
-              <button className="btn btn-red btn-full" onClick={() => deleteParty(confirmDel)}>Delete</button>
+              <button className="btn btn-ghost btn-full" onClick={() => setConfirmDel(null)} disabled={deleting}>Cancel</button>
+              <button className="btn btn-red btn-full" onClick={() => deleteParty(confirmDel)} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
