@@ -63,7 +63,7 @@ export default function Parties() {
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)', paddingBottom:90 }}>
       <div className="grad-blue" style={{ padding:'18px 16px 0', color:'white' }}>
-        <h2 style={{ fontSize:20, fontWeight:800, marginBottom:14 }}>👥 All Parties</h2>
+        <h2 style={{ fontSize:20, fontWeight:800, marginBottom:14 }}>All Parties</h2>
         <div style={{ background:'rgba(255,255,255,.13)', borderRadius:14, padding:'10px 16px', display:'flex', marginBottom:14 }}>
           <div style={{ flex:1, borderRight:'1px solid rgba(255,255,255,.2)', paddingRight:14 }}>
             <p style={{ fontSize:10, opacity:.75, marginBottom:2 }}>You will get</p>
@@ -98,7 +98,7 @@ export default function Parties() {
         {loading ? <div className="spinner"><div className="spin"/></div>
           : parties.length === 0 ? (
             <div className="empty">
-              <div className="ico">👥</div>
+              <div className="ico">🤝</div>
               <h3>{search ? `No results for "${search}"` : 'No parties found'}</h3>
               <p>{search ? 'Try a different name' : 'Tap below to add a party'}</p>
             </div>
