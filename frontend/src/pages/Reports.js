@@ -270,6 +270,114 @@ ${partyArr.length > 0 ? `
   }
 };
 
+
+/* ── Show More Button ── */
+function ShowMoreBtn({ showing, total, onToggle }) {
+  if (total <= 4) return null;
+  return (
+    <button onClick={onToggle}
+      style={{ width:'100%', padding:'10px', fontSize:12, fontWeight:700, color:'var(--blue)', background:'var(--blue-lt)', border:'none', cursor:'pointer', fontFamily:'inherit' }}>
+      {showing ? `Show less ↑` : `Show all ${total} ↓`}
+    </button>
+  );
+}
+
+/* ── Outstanding Card with Show More ── */
+function OutstandingCard({ toGet, toGive }) {
+  const [showAll, setShowAll] = useState(false);
+  const LIMIT = 4;
+  const allParties = [
+    ...toGet.map(p => ({ ...p, type:'get' })),
+    ...toGive.map(p => ({ ...p, type:'give' })),
+  ];
+  const visible = showAll ? allParties : allParties.slice(0, LIMIT);
+  return (
+    <div className="card" style={{ overflow:'hidden', marginBottom:14 }}>
+      <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <p style={{ fontWeight:700, fontSize:13, color:'var(--text2)' }}>Outstanding Balances</p>
+        <p style={{ fontSize:11, color:'var(--text3)' }}>{allParties.length} parties</p>
+      </div>
+      {visible.map((p, i) => (
+        <div key={p._id||i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', borderBottom:'1px solid var(--border)' }}>
+          <div>
+            <p style={{ fontSize:14, fontWeight:600 }}>{p.name}</p>
+            <p style={{ fontSize:11, color: p.type==='get'?'var(--green)':'var(--red)', fontWeight:600 }}>
+              {p.type==='get' ? 'Will receive' : 'Will give'}
+            </p>
+          </div>
+          <p style={{ fontSize:15, fontWeight:800, color: p.type==='get'?'var(--green)':'var(--red)' }}>
+            ₹{fmt(Math.abs(p.balance),0)}
+          </p>
+        </div>
+      ))}
+      <ShowMoreBtn showing={showAll} total={allParties.length} onToggle={() => setShowAll(s => !s)}/>
+    </div>
+  );
+}
+
+/* ── Party Breakdown Card with Show More ── */
+function PartyBreakdownCard({ partyArr }) {
+  const [showAll, setShowAll] = useState(false);
+  const LIMIT = 4;
+  const visible = showAll ? partyArr : partyArr.slice(0, LIMIT);
+  return (
+    <div className="card" style={{ overflow:'hidden', marginBottom:14 }}>
+      <p style={{ fontWeight:700, fontSize:13, color:'var(--text2)', padding:'12px 14px 8px' }}>By Party</p>
+      {visible.map(([name, s], i) => (
+        <div key={i} style={{ padding:'11px 14px', borderTop:'1px solid var(--border)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+            <div>
+              <p style={{ fontWeight:700, fontSize:14 }}>{name}</p>
+              <p style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>{s.count} transaction{s.count!==1?'s':''}</p>
+            </div>
+            <p style={{ fontSize:14, fontWeight:800, color:s.received-s.given>=0?'var(--green)':'var(--red)' }}>
+              net {s.received-s.given>=0?'+':'-'}₹{fmt(Math.abs(s.received-s.given),0)}
+            </p>
+          </div>
+          <div style={{ display:'flex', gap:16, marginTop:6 }}>
+            <p style={{ fontSize:12, color:'var(--green)', fontWeight:600 }}>+₹{fmt(s.received,0)}</p>
+            <p style={{ fontSize:12, color:'var(--red)', fontWeight:600 }}>-₹{fmt(s.given,0)}</p>
+          </div>
+        </div>
+      ))}
+      <ShowMoreBtn showing={showAll} total={partyArr.length} onToggle={() => setShowAll(s => !s)}/>
+    </div>
+  );
+}
+
+/* ── Transaction List Card with Show More ── */
+function TransactionListCard({ txs, totalIn, totalOut }) {
+  const [showAll, setShowAll] = useState(false);
+  const LIMIT = 4;
+  const visible = showAll ? txs : txs.slice(0, LIMIT);
+  return (
+    <>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+        <p className="sec-title" style={{ margin:0 }}>{txs.length} Transactions</p>
+        <p style={{ fontSize:11, color:'var(--text3)' }}>Total ₹{fmt(totalIn+totalOut,0)}</p>
+      </div>
+      <div className="card" style={{ overflow:'hidden', marginBottom:16 }}>
+        {visible.map(tx => (
+          <div key={tx._id} className="tx-item">
+            <div style={{ flex:1, minWidth:0 }}>
+              <p style={{ fontSize:14, fontWeight:700 }}>{tx.partyId?.name||'—'}</p>
+              <p className="tx-date">{fmtDate(tx.date)}</p>
+              {tx.note && <p className="tx-note">{tx.note}</p>}
+            </div>
+            <div style={{ textAlign:'right', marginLeft:10 }}>
+              <p style={{ fontSize:15, fontWeight:800, color:tx.type==='got'?'var(--green)':'var(--red)' }}>
+                {tx.type==='got'?'+':'-'}₹{fmt(tx.amount,2)}
+              </p>
+              <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{tx.type==='got'?'Received':'Given'}</p>
+            </div>
+          </div>
+        ))}
+        <ShowMoreBtn showing={showAll} total={txs.length} onToggle={() => setShowAll(s => !s)}/>
+      </div>
+    </>
+  );
+}
+
 /* ══════════════════════════════════════════
    MAIN ANALYTICS PAGE
 ══════════════════════════════════════════ */
@@ -526,83 +634,16 @@ export default function Analytics() {
 
             {/* Outstanding */}
             {(toGet.length > 0 || toGive.length > 0) && (
-              <div className="card" style={{ overflow:'hidden', marginBottom:14 }}>
-                <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <p style={{ fontWeight:700, fontSize:13, color:'var(--text2)' }}>Outstanding Balances</p>
-                  <p style={{ fontSize:11, color:'var(--text3)' }}>{toGet.length + toGive.length} parties</p>
-                </div>
-                {toGet.slice(0,5).map(p => (
-                  <div key={p._id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', borderBottom:'1px solid var(--border)' }}>
-                    <div>
-                      <p style={{ fontSize:14, fontWeight:600 }}>{p.name}</p>
-                      <p style={{ fontSize:11, color:'var(--green)', fontWeight:600 }}>Will receive</p>
-                    </div>
-                    <p style={{ fontSize:15, fontWeight:800, color:'var(--green)' }}>₹{fmt(p.balance,0)}</p>
-                  </div>
-                ))}
-                {toGive.slice(0,5).map(p => (
-                  <div key={p._id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', borderBottom:'1px solid var(--border)' }}>
-                    <div>
-                      <p style={{ fontSize:14, fontWeight:600 }}>{p.name}</p>
-                      <p style={{ fontSize:11, color:'var(--red)', fontWeight:600 }}>Will give</p>
-                    </div>
-                    <p style={{ fontSize:15, fontWeight:800, color:'var(--red)' }}>₹{fmt(Math.abs(p.balance),0)}</p>
-                  </div>
-                ))}
-                {(toGet.length + toGive.length) > 10 && (
-                  <p style={{ padding:'8px 14px', fontSize:12, color:'var(--text3)', textAlign:'center' }}>
-                    +{toGet.length + toGive.length - 10} more parties
-                  </p>
-                )}
-              </div>
+              <OutstandingCard toGet={toGet} toGive={toGive}/>
             )}
 
             {/* Party breakdown */}
             {partyArr.length > 0 && (
-              <div className="card" style={{ overflow:'hidden', marginBottom:14 }}>
-                <p style={{ fontWeight:700, fontSize:13, color:'var(--text2)', padding:'12px 14px 8px' }}>By Party</p>
-                {partyArr.map(([name, s], i) => (
-                  <div key={i} style={{ padding:'11px 14px', borderTop:'1px solid var(--border)' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                      <div>
-                        <p style={{ fontWeight:700, fontSize:14 }}>{name}</p>
-                        <p style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>{s.count} transaction{s.count!==1?'s':''}</p>
-                      </div>
-                      <p style={{ fontSize:14, fontWeight:800, color:s.received-s.given>=0?'var(--green)':'var(--red)' }}>
-                        net {s.received-s.given>=0?'+':'-'}₹{fmt(Math.abs(s.received-s.given),0)}
-                      </p>
-                    </div>
-                    <div style={{ display:'flex', gap:16, marginTop:6 }}>
-                      <p style={{ fontSize:12, color:'var(--green)', fontWeight:600 }}>+₹{fmt(s.received,0)}</p>
-                      <p style={{ fontSize:12, color:'var(--red)', fontWeight:600 }}>-₹{fmt(s.given,0)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <PartyBreakdownCard partyArr={partyArr}/>
             )}
 
             {/* Transaction list */}
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <p className="sec-title" style={{ margin:0 }}>{txs.length} Transactions</p>
-              <p style={{ fontSize:11, color:'var(--text3)' }}>Total ₹{fmt(totalIn+totalOut,0)}</p>
-            </div>
-            <div className="card" style={{ overflow:'hidden', marginBottom:16 }}>
-              {txs.map(tx => (
-                <div key={tx._id} className="tx-item">
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <p style={{ fontSize:14, fontWeight:700 }}>{tx.partyId?.name||'—'}</p>
-                    <p className="tx-date">{fmtDate(tx.date)}</p>
-                    {tx.note && <p className="tx-note">{tx.note}</p>}
-                  </div>
-                  <div style={{ textAlign:'right', marginLeft:10 }}>
-                    <p style={{ fontSize:15, fontWeight:800, color:tx.type==='got'?'var(--green)':'var(--red)' }}>
-                      {tx.type==='got'?'+':'-'}₹{fmt(tx.amount,2)}
-                    </p>
-                    <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{tx.type==='got'?'Received':'Given'}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TransactionListCard txs={txs} totalIn={totalIn} totalOut={totalOut}/>
           </>
         )}
       </div>
