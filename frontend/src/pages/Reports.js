@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { txAPI, partyAPI } from '../api';
+import { txAPI, partyAPI, categoryAPI } from '../api';
 import { fmt, fmtDate } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
 
@@ -66,7 +66,7 @@ function Donut({ received, given }) {
 /* ══════════════════════════════════════════
    ADVANCED PDF GENERATOR
 ══════════════════════════════════════════ */
-const exportPDF = (txs, user, period, totalIn, totalOut, parties, chartData) => {
+const exportPDF = (txs, user, period, totalIn, totalOut, parties, chartData, filterContext) => {
   const PERIOD_LABEL = { today:'Today', week:'This Week', month:'This Month', year:'This Year', custom:'Custom Range' };
   const net    = totalIn - totalOut;
   const avgTx  = txs.length ? (totalIn + totalOut) / txs.length : 0;
@@ -383,11 +383,12 @@ function TransactionListCard({ txs, totalIn, totalOut }) {
 ══════════════════════════════════════════ */
 export default function Analytics() {
   const { user } = useAuth();
-  const [txs,       setTxs]       = useState([]);
-  const [parties,   setParties]   = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [period,    setPeriod]    = useState('month');
-  const [filter,    setFilter]    = useState({ type:'', partyId:'', ...getRangeForPeriod('month') });
+  const [txs,        setTxs]        = useState([]);
+  const [parties,    setParties]    = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [period,     setPeriod]     = useState('month');
+  const [filter,     setFilter]     = useState({ type:'', partyId:'', categoryId:'', ...getRangeForPeriod('month') });
   const [showCustom,setShowCustom]= useState(false);
   const [cStart,    setCStart]    = useState('');
   const [cEnd,      setCEnd]      = useState('');
@@ -410,14 +411,31 @@ export default function Analytics() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { limit:1000 };
-      if (filter.type)      params.type      = filter.type;
-      if (filter.startDate) params.startDate = filter.startDate;
-      if (filter.endDate)   params.endDate   = filter.endDate;
-      if (filter.partyId)   params.partyId   = filter.partyId;
-      const [tR, pR] = await Promise.all([txAPI.getAll(params), partyAPI.getAll()]);
-      setTxs(tR.data.data || []);
+      const txParams = { limit:1000 };
+      if (filter.type)      txParams.type      = filter.type;
+      if (filter.startDate) txParams.startDate = filter.startDate;
+      if (filter.endDate)   txParams.endDate   = filter.endDate;
+      if (filter.partyId)   txParams.partyId   = filter.partyId;
+
+      const partyParams = {};
+      if (filter.categoryId) partyParams.categoryId = filter.categoryId;
+
+      const [tR, pR, cR] = await Promise.all([
+        txAPI.getAll(txParams),
+        partyAPI.getAll(partyParams),
+        categoryAPI.getAll(),
+      ]);
+
+      let fetchedTxs = tR.data.data || [];
+      // If category filter is set, only keep transactions for parties in that category
+      if (filter.categoryId) {
+        const partyIds = new Set((pR.data.data || []).map(p => p._id));
+        fetchedTxs = fetchedTxs.filter(t => partyIds.has(t.partyId?._id || t.partyId));
+      }
+
+      setTxs(fetchedTxs);
       setParties(pR.data.data || []);
+      setCategories(cR.data.data || []);
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
   }, [filter]);
@@ -499,7 +517,14 @@ export default function Analytics() {
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
           <h2 style={{ fontSize:20, fontWeight:800, margin:0 }}>Analytics</h2>
           <button
-            onClick={() => exportPDF(txs, user, period, totalIn, totalOut, parties, chartData)}
+            onClick={() => {
+              const parts = [];
+              if (filter.categoryId) { const cat = categories.find(c=>c._id===filter.categoryId); if(cat) parts.push(`Category: ${cat.name}`); }
+              if (filter.partyId)    { const p = parties.find(p=>p._id===filter.partyId); if(p) parts.push(`Party: ${p.name}`); }
+              if (filter.type)       parts.push(`Type: ${filter.type==='got'?'Received only':'Given only'}`);
+              if (filter.startDate && filter.endDate) parts.push(`Date: ${filter.startDate} to ${filter.endDate}`);
+              exportPDF(txs, user, period, totalIn, totalOut, parties, chartData, { activeFilters: parts.join(' · ') || null });
+            }}
             disabled={!txs.length}
             style={{ background:'rgba(255,255,255,.2)', border:'1.5px solid rgba(255,255,255,.35)', color:'white', borderRadius:50, padding:'7px 16px', fontSize:12, fontWeight:700, cursor:txs.length?'pointer':'not-allowed', fontFamily:'inherit', opacity:txs.length?1:.5 }}>
             Download PDF
@@ -579,22 +604,41 @@ export default function Analytics() {
         )}
 
         {/* Filters */}
-        <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-          <div className="field" style={{ margin:0, flex:1 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+          <div className="field" style={{ margin:0 }}>
             <label>Type</label>
             <select value={filter.type} onChange={e=>setFilter(f=>({...f,type:e.target.value}))} style={{ fontSize:13, background:'transparent' }}>
-              <option value="">All</option>
+              <option value="">All types</option>
               <option value="got">Received only</option>
               <option value="gave">Given only</option>
             </select>
           </div>
+          <div className="field" style={{ margin:0 }}>
+            <label>Category</label>
+            <select value={filter.categoryId} onChange={e=>setFilter(f=>({...f,categoryId:e.target.value,partyId:''}))} style={{ fontSize:13, background:'transparent' }}>
+              <option value="">All categories</option>
+              {categories.map(c=><option key={c._id} value={c._id}>{c.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:8, marginBottom:14 }}>
           <div className="field" style={{ margin:0, flex:1 }}>
             <label>Party</label>
             <select value={filter.partyId} onChange={e=>setFilter(f=>({...f,partyId:e.target.value}))} style={{ fontSize:13, background:'transparent' }}>
               <option value="">All parties</option>
-              {parties.map(p=><option key={p._id} value={p._id}>{p.name}</option>)}
+              {(filter.categoryId
+                ? parties.filter(p => p.categoryId?._id === filter.categoryId || p.categoryId === filter.categoryId)
+                : parties
+              ).map(p=><option key={p._id} value={p._id}>{p.name}</option>)}
             </select>
           </div>
+          {(filter.type || filter.categoryId || filter.partyId) && (
+            <button
+              onClick={() => setFilter(f=>({...f, type:'', categoryId:'', partyId:''}))}
+              style={{ alignSelf:'center', padding:'8px 14px', borderRadius:50, fontSize:12, fontWeight:700, color:'var(--red)', background:'var(--red-lt)', border:'none', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', marginTop:4 }}>
+              Clear filters
+            </button>
+          )}
         </div>
 
         {loading ? (
