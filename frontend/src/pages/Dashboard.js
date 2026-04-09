@@ -7,11 +7,10 @@ import { fmt, avatarColor, avatarLetter } from '../utils/helpers';
 
 const COLOR_OPTIONS = ['#1a4fd6','#1a9e5c','#e53935','#f57c00','#7b1fa2','#0097a7','#c62828','#558b2f','#ad1457','#283593'];
 
-/* ── Category form sheet ── */
+/* ── Category Form Sheet ── */
 function CategoryFormSheet({ onClose, onDone, existing }) {
   const [name,   setName]   = useState(existing?.name  || '');
   const [color,  setColor]  = useState(existing?.color || COLOR_OPTIONS[0]);
-  const [icon,   setIcon]   = useState(existing?.icon  || '🏷️');
   const [saving, setSaving] = useState(false);
 
   const submit = async e => {
@@ -20,10 +19,10 @@ function CategoryFormSheet({ onClose, onDone, existing }) {
     setSaving(true);
     try {
       if (existing) {
-        await categoryAPI.update(existing._id, { name: name.trim(), color, icon });
+        await categoryAPI.update(existing._id, { name: name.trim(), color });
         toast.success('Category updated!');
       } else {
-        await categoryAPI.create({ name: name.trim(), color, icon });
+        await categoryAPI.create({ name: name.trim(), color });
         toast.success('Category created!');
       }
       onDone();
@@ -40,12 +39,11 @@ function CategoryFormSheet({ onClose, onDone, existing }) {
             <label>Category Name *</label>
             <input placeholder="e.g. Customers, Suppliers…" value={name} onChange={e => setName(e.target.value)} autoFocus />
           </div>
-
           <p style={{ fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', marginBottom:8 }}>Color</p>
-          <div style={{ display:'flex', gap:8, marginBottom:18, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap' }}>
             {COLOR_OPTIONS.map(c => (
               <button key={c} type="button" onClick={() => setColor(c)} style={{
-                width:28, height:28, borderRadius:'50%', background:c,
+                width:30, height:30, borderRadius:'50%', background:c,
                 border:`3px solid ${c===color?'var(--text)':'transparent'}`, cursor:'pointer', flexShrink:0
               }}/>
             ))}
@@ -60,7 +58,7 @@ function CategoryFormSheet({ onClose, onDone, existing }) {
   );
 }
 
-/* ── Delete category sheet ── */
+/* ── Delete Category Sheet ── */
 function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
   const [action,  setAction]  = useState('delete_parties');
   const [moveId,  setMoveId]  = useState(otherCategories[0]?._id || '');
@@ -95,7 +93,7 @@ function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
                   {action==='move_parties' && (
                     <select value={moveId} onChange={e => setMoveId(e.target.value)}
                       style={{ display:'block', marginTop:6, fontSize:13, padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'white', width:'100%' }}>
-                      {otherCategories.map(c => <option key={c._id} value={c._id}>{c.icon} {c.name}</option>)}
+                      {otherCategories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                     </select>
                   )}
                 </div>
@@ -104,7 +102,7 @@ function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
           </>
         )}
         <div style={{ display:'flex', gap:10 }}>
-          <button className="btn btn-ghost btn-full" onClick={onClose}>Cancel</button>
+          <button className="btn btn-ghost btn-full" onClick={onClose} disabled={loading}>Cancel</button>
           <button className="btn btn-red btn-full" onClick={submit} disabled={loading}>{loading?'Deleting…':'Delete'}</button>
         </div>
       </div>
@@ -112,28 +110,32 @@ function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
   );
 }
 
-/* ── Category Parties Sheet — shown when user taps a category ── */
+/* ── Category Parties Sheet ── */
 function CategoryPartiesSheet({ cat, onClose, navigate }) {
   const [parties,    setParties]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [confirmDel, setConfirmDel] = useState(null);
+  const [deleting,   setDeleting]   = useState(false);
 
-  const load = () => {
+  const load = useCallback(() => {
+    setLoading(true);
     partyAPI.getAll({ categoryId: cat._id })
       .then(r => setParties(r.data.data || []))
-      .catch(() => {})
+      .catch(() => toast.error('Failed to load parties'))
       .finally(() => setLoading(false));
-  };
+  }, [cat._id]);
 
-  useEffect(() => { load(); }, [cat._id]);
+  useEffect(() => { load(); }, [load]);
 
   const deleteParty = async (party) => {
+    setDeleting(true);
     try {
       await partyAPI.delete(party._id);
       toast.success(`${party.name} deleted`);
       setConfirmDel(null);
       load();
     } catch { toast.error('Failed to delete'); }
+    finally { setDeleting(false); }
   };
 
   const toGet  = parties.filter(p=>p.balance>0).reduce((s,p)=>s+p.balance,0);
@@ -141,50 +143,46 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
 
   return (
     <>
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet" onClick={e => e.stopPropagation()}
-        style={{ maxHeight:'82vh', display:'flex', flexDirection:'column', padding:0, overflow:'hidden' }}>
+      <div className="overlay" onClick={onClose}>
+        <div className="sheet" onClick={e => e.stopPropagation()}
+          style={{ maxHeight:'82vh', display:'flex', flexDirection:'column', padding:0, overflow:'hidden' }}>
 
-        {/* Sheet header */}
-        <div style={{ padding:'18px 18px 14px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:10 }}>
-            <div style={{ width:42, height:42, borderRadius:12, background:cat.color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>
-              {cat.icon}
+          {/* Header */}
+          <div style={{ padding:'18px 18px 14px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:10 }}>
+              <div style={{ width:42, height:42, borderRadius:12, background:cat.color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0, color:'white', fontWeight:800 }}>
+                {cat.name[0].toUpperCase()}
+              </div>
+              <div style={{ flex:1 }}>
+                <h3 style={{ fontWeight:800, fontSize:17, margin:0 }}>{cat.name}</h3>
+                <p style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>{parties.length} {parties.length===1?'party':'parties'}</p>
+              </div>
+              <button onClick={onClose} style={{ background:'var(--bg)', border:'none', borderRadius:50, width:30, height:30, fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text3)' }}>×</button>
             </div>
-            <div style={{ flex:1 }}>
-              <h3 style={{ fontWeight:800, fontSize:17, margin:0 }}>{cat.name}</h3>
-              <p style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>{parties.length} parties</p>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+              <div style={{ background:'var(--green-lt)', borderRadius:10, padding:'8px 12px' }}>
+                <p style={{ fontSize:10, color:'var(--green)', fontWeight:700, marginBottom:2 }}>TO GET</p>
+                <p style={{ fontSize:16, fontWeight:800, color:'var(--green)' }}>₹{fmt(toGet,0)}</p>
+              </div>
+              <div style={{ background:'var(--red-lt)', borderRadius:10, padding:'8px 12px' }}>
+                <p style={{ fontSize:10, color:'var(--red)', fontWeight:700, marginBottom:2 }}>TO GIVE</p>
+                <p style={{ fontSize:16, fontWeight:800, color:'var(--red)' }}>₹{fmt(toGive,0)}</p>
+              </div>
             </div>
-            <button onClick={onClose} style={{ background:'var(--bg)', border:'none', borderRadius:50, width:30, height:30, fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text3)' }}>×</button>
           </div>
-          {/* Balance summary */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            <div style={{ background:'var(--red-lt)', borderRadius:10, padding:'8px 12px' }}>
-              <p style={{ fontSize:10, color:'var(--green)', fontWeight:700, marginBottom:2 }}>💰 TO GET</p>
-              <p style={{ fontSize:16, fontWeight:800, color:'var(--green)' }}>₹{fmt(toGet,0)}</p>
-            </div>
-            <div style={{ background:'var(--blue-lt)', borderRadius:10, padding:'8px 12px' }}>
-              <p style={{ fontSize:10, color:'var(--red)', fontWeight:700, marginBottom:2 }}>💸 TO GIVE</p>
-              <p style={{ fontSize:16, fontWeight:800, color:'var(--red)' }}>₹{fmt(toGive,0)}</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Party list */}
-        <div style={{ flex:1, overflowY:'auto' }}>
-          {loading ? (
-            <div className="spinner"><div className="spin"/></div>
-          ) : parties.length === 0 ? (
-            <div className="empty" style={{ paddingTop:32 }}>
-              <div className="ico">🤝</div>
-              <h3>No parties yet</h3>
-              <p>Add a party to this category</p>
-            </div>
-          ) : (
-            parties.map(p => (
-              <div key={p._id}
-                style={{ padding:'13px 18px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12, background:'white' }}>
-                {/* Main row → navigate */}
+          {/* Party list */}
+          <div style={{ flex:1, overflowY:'auto' }}>
+            {loading ? (
+              <div className="spinner"><div className="spin"/></div>
+            ) : parties.length === 0 ? (
+              <div className="empty" style={{ paddingTop:32 }}>
+                <div className="ico">🤝</div>
+                <h3>No parties yet</h3>
+                <p>Add a party to this category</p>
+              </div>
+            ) : parties.map(p => (
+              <div key={p._id} style={{ padding:'13px 18px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12, background:'white' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:12, flex:1, cursor:'pointer' }}
                   onClick={() => { onClose(); navigate(`/parties/${p._id}`); }}>
                   <div className="avatar av-sm" style={{ background: avatarColor(p.name) }}>{avatarLetter(p.name)}</div>
@@ -193,46 +191,47 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
                     {p.phone && <p style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>{p.phone}</p>}
                   </div>
                   <div style={{ textAlign:'right', flexShrink:0 }}>
-                    <p style={{ fontSize:15, fontWeight:800, color: p.balance>0?'var(--green)':p.balance<0?'var(--red)':'var(--text3)' }}>₹{fmt(Math.abs(p.balance),0)}</p>
+                    <p style={{ fontSize:15, fontWeight:800, color: p.balance>0?'var(--green)':p.balance<0?'var(--red)':'var(--text3)' }}>
+                      ₹{fmt(Math.abs(p.balance),0)}
+                    </p>
                     <p style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{p.balance>0?'to get':p.balance<0?'to give':'settled'}</p>
                   </div>
                 </div>
-                {/* Delete button */}
-                <button
-                  onClick={e => { e.stopPropagation(); setConfirmDel(p); }}
-                  style={{ flexShrink:0, width:32, height:32, borderRadius:8, background:'var(--red-lt)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15 }}>
+                <button onClick={() => setConfirmDel(p)}
+                  style={{ flexShrink:0, width:32, height:32, borderRadius:8, background:'var(--red-lt)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>
                   🗑️
                 </button>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
 
-        {/* Add party button */}
-        <div style={{ padding:'12px 18px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
-          <button className="btn btn-primary btn-full"
-            onClick={() => { onClose(); navigate(`/parties/add?cat=${cat._id}`); }}>
-            + Add Party to {cat.name}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    {/* Delete confirm sheet */}
-    {confirmDel && (
-      <div className="overlay" onClick={() => setConfirmDel(null)}>
-        <div className="sheet" onClick={e => e.stopPropagation()}>
-          <h3 style={{ fontWeight:800, marginBottom:6 }}>Delete "{confirmDel.name}"?</h3>
-          <p style={{ fontSize:13, color:'var(--text2)', marginBottom:20 }}>
-            This permanently deletes this party and all their transactions.
-          </p>
-          <div style={{ display:'flex', gap:10 }}>
-            <button className="btn btn-ghost btn-full" onClick={() => setConfirmDel(null)}>Cancel</button>
-            <button className="btn btn-red btn-full" onClick={() => deleteParty(confirmDel)}>Delete</button>
+          {/* Footer */}
+          <div style={{ padding:'12px 18px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
+            <button className="btn btn-primary btn-full"
+              onClick={() => { onClose(); navigate(`/parties/add?cat=${cat._id}`); }}>
+              + Add Party to {cat.name}
+            </button>
           </div>
         </div>
       </div>
-    )}
+
+      {/* Delete confirm */}
+      {confirmDel && (
+        <div className="overlay" onClick={() => !deleting && setConfirmDel(null)}>
+          <div className="sheet" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontWeight:800, marginBottom:6 }}>Delete "{confirmDel.name}"?</h3>
+            <p style={{ fontSize:13, color:'var(--text2)', marginBottom:20 }}>
+              Permanently deletes this party and all their transactions.
+            </p>
+            <div style={{ display:'flex', gap:10 }}>
+              <button className="btn btn-ghost btn-full" onClick={() => setConfirmDel(null)} disabled={deleting}>Cancel</button>
+              <button className="btn btn-red btn-full" onClick={() => deleteParty(confirmDel)} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -240,17 +239,17 @@ function CategoryPartiesSheet({ cat, onClose, navigate }) {
 /* ── Main Dashboard ── */
 export default function Dashboard() {
   const { user } = useAuth();
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   const [data,        setData]        = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [showCatForm, setShowCatForm] = useState(false);
   const [editCat,     setEditCat]     = useState(null);
   const [deleteCat,   setDeleteCat]   = useState(null);
-  const [viewCat,     setViewCat]     = useState(null); // category whose parties to show
+  const [viewCat,     setViewCat]     = useState(null);
 
   const load = useCallback(async () => {
     try { const r = await dashAPI.get(); setData(r.data.data); }
-    catch(e) { console.error(e); }
+    catch(e) { console.error(e); toast.error('Failed to load dashboard'); }
     finally { setLoading(false); }
   }, []);
 
@@ -258,7 +257,7 @@ export default function Dashboard() {
 
   if (loading) return <div className="spinner"><div className="spin"/></div>;
 
-  const d = data || { grouped:[], totalToGet:0, totalToGive:0, partyCount:0, recentTransactions:[] };
+  const d = data || { grouped:[], totalToGet:0, totalToGive:0, partyCount:0 };
 
   return (
     <div style={{ background:'var(--bg)', minHeight:'100vh', paddingBottom:80 }}>
@@ -267,9 +266,9 @@ export default function Dashboard() {
       <div className="grad-blue" style={{ padding:'20px 16px 24px', color:'white' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
           <div>
-            <p style={{ opacity:.7, fontSize:12, marginBottom:2 }}>👋 Hello,</p>
+            <p style={{ opacity:.7, fontSize:12, marginBottom:2 }}>Hello,</p>
             <h2 style={{ fontSize:22, fontWeight:800, margin:0 }}>{user?.name}</h2>
-            <p style={{ opacity:.65, fontSize:12, marginTop:3 }}>💳 {user?.businessName}</p>
+            <p style={{ opacity:.65, fontSize:12, marginTop:3 }}>{user?.businessName}</p>
           </div>
           <div style={{ background:'rgba(255,255,255,.14)', borderRadius:10, padding:'8px 12px', textAlign:'right' }}>
             <p style={{ fontSize:10, opacity:.7 }}>Net Balance</p>
@@ -280,21 +279,20 @@ export default function Dashboard() {
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
           <div style={{ background:'rgba(255,255,255,.12)', borderRadius:12, padding:'10px 14px' }}>
-            <p style={{ fontSize:11, opacity:.7, marginBottom:3 }}>💰 You will GET</p>
+            <p style={{ fontSize:11, opacity:.7, marginBottom:3 }}>You will GET</p>
             <p style={{ fontSize:20, fontWeight:800, color:'#4ade80' }}>₹{fmt(d.totalToGet,0)}</p>
           </div>
           <div style={{ background:'rgba(255,255,255,.12)', borderRadius:12, padding:'10px 14px' }}>
-            <p style={{ fontSize:11, opacity:.7, marginBottom:3 }}>💸 You will GIVE</p>
+            <p style={{ fontSize:11, opacity:.7, marginBottom:3 }}>You will GIVE</p>
             <p style={{ fontSize:20, fontWeight:800, color:'#f87171' }}>₹{fmt(d.totalToGive,0)}</p>
           </div>
         </div>
       </div>
 
       <div style={{ padding:'14px 14px 0' }}>
-
         {/* Categories header */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-          <p className="sec-title" style={{ margin:0 }}>📂 Categories ({d.grouped.length})</p>
+          <p className="sec-title" style={{ margin:0 }}>Categories ({d.grouped.length})</p>
           <button onClick={() => setShowCatForm(true)}
             style={{ background:'var(--blue-lt)', color:'var(--blue)', border:'none', borderRadius:50, padding:'5px 14px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
             + Add
@@ -313,21 +311,14 @@ export default function Dashboard() {
             {d.grouped.map(({ category: cat, parties, toGet, toGive }) => (
               <div key={cat._id} className="card"
                 onClick={() => setViewCat(cat)}
-                style={{ padding:'14px', cursor:'pointer', position:'relative', overflow:'hidden', transition:'transform .15s, box-shadow .15s' }}
-                onMouseDown={e => e.currentTarget.style.transform='scale(.97)'}
-                onMouseUp={e => e.currentTarget.style.transform='scale(1)'}
-                onTouchStart={e => e.currentTarget.style.transform='scale(.97)'}
-                onTouchEnd={e => e.currentTarget.style.transform='scale(1)'}
-              >
-                {/* Color accent bar */}
-                <div style={{ position:'absolute', top:0, left:0, right:0, height:4, background:cat.color, borderRadius:'16px 16px 0 0' }}/>
-
-                {/* Icon + actions row */}
+                style={{ padding:'14px', cursor:'pointer', position:'relative', overflow:'hidden' }}>
+                {/* Color bar */}
+                <div style={{ position:'absolute', top:0, left:0, right:0, height:4, background:cat.color }}/>
+                {/* Actions */}
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:8, marginTop:4 }}>
-                  <div style={{ width:40, height:40, borderRadius:12, background:cat.color+'22', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>
-                    {cat.icon}
+                  <div style={{ width:38, height:38, borderRadius:10, background:cat.color+'22', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, color:cat.color, fontWeight:800 }}>
+                    {cat.name[0].toUpperCase()}
                   </div>
-                  {/* edit/delete */}
                   <div style={{ display:'flex', gap:4 }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => setEditCat(cat)}
                       style={{ width:26, height:26, borderRadius:8, background:'var(--bg)', fontSize:12, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>✏️</button>
@@ -335,34 +326,16 @@ export default function Dashboard() {
                       style={{ width:26, height:26, borderRadius:8, background:'var(--red-lt)', fontSize:12, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>🗑️</button>
                   </div>
                 </div>
-
-                {/* Name + count */}
                 <p style={{ fontWeight:800, fontSize:15, marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cat.name}</p>
                 <p style={{ fontSize:11, color:'var(--text3)', marginBottom:10 }}>{parties.length} {parties.length===1?'party':'parties'}</p>
-
-                {/* Balance summary */}
-                {toGet > 0 && (
-                  <p style={{ fontSize:12, fontWeight:700, color:'var(--red)', marginBottom:2 }}>
-                    GET ₹{fmt(toGet,0)}
-                  </p>
-                )}
-                {toGive > 0 && (
-                  <p style={{ fontSize:12, fontWeight:700, color:'var(--blue)' }}>
-                    GIVE ₹{fmt(toGive,0)}
-                  </p>
-                )}
-                {toGet === 0 && toGive === 0 && (
-                  <p style={{ fontSize:12, color:'var(--text4)' }}>All settled ✅</p>
-                )}
-
-                {/* Tap hint */}
-                <p style={{ fontSize:10, color:'var(--text4)', marginTop:8 }}>Tap to view parties →</p>
+                {toGet > 0 && <p style={{ fontSize:12, fontWeight:700, color:'var(--green)', marginBottom:2 }}>GET ₹{fmt(toGet,0)}</p>}
+                {toGive > 0 && <p style={{ fontSize:12, fontWeight:700, color:'var(--red)' }}>GIVE ₹{fmt(toGive,0)}</p>}
+                {toGet === 0 && toGive === 0 && <p style={{ fontSize:11, color:'var(--text4)' }}>All settled ✅</p>}
+                <p style={{ fontSize:10, color:'var(--text4)', marginTop:8 }}>Tap to view →</p>
               </div>
             ))}
           </div>
         )}
-
-
       </div>
 
       {/* Sheets */}
