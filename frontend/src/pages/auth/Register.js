@@ -105,9 +105,7 @@ export default function Register() {
                 onChange={e => setBusinessName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendOTP()} />
             </div>
-            <p style={{ fontSize:12, color:'var(--text3)', marginBottom:20 }}>
-              Phone must include country code — e.g. <strong>+91</strong> for India
-            </p>
+            
             <button onClick={sendOTP} disabled={loading} style={btnStyle(loading)}>
               {loading ? 'Sending OTP…' : '📲 Send OTP'}
             </button>
