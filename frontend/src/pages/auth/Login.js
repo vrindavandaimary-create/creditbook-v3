@@ -8,7 +8,7 @@ const STEP = { PHONE: 'phone', OTP: 'otp' };
 
 export default function Login() {
   const [step,      setStep]      = useState(STEP.PHONE);
-  const [phone,     setPhone]     = useState('');
+  const [phone,     setPhone]     = useState('+91');
   const [otp,       setOtp]       = useState(['','','','','','']);
   const [loading,   setLoading]   = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -87,7 +87,7 @@ export default function Login() {
             <p style={{ fontSize:13, color:'var(--text3)', marginBottom:28 }}>Enter your phone number to login</p>
             <div className="field">
               <label>Phone Number</label>
-              <input type="tel" placeholder="+91XXXXXXXXXX" value={phone}
+              <input type="tel" placeholder="XXXXXXXXXX" value={phone}
                 onChange={e => setPhone(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendOTP()}
                 autoFocus autoComplete="tel" />
