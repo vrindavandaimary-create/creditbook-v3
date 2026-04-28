@@ -9,7 +9,7 @@ const STEP = { DETAILS: 'details', OTP: 'otp' };
 export default function Register() {
   const [step,         setStep]         = useState(STEP.DETAILS);
   const [name,         setName]         = useState('');
-  const [phone,        setPhone]        = useState('');
+  const [phone,        setPhone]        = useState('+91');
   const [businessName, setBusinessName] = useState('');
   const [otp,          setOtp]          = useState(['','','','','','']);
   const [loading,      setLoading]      = useState(false);
@@ -96,7 +96,7 @@ export default function Register() {
             </div>
             <div className="field">
               <label>Phone Number *</label>
-              <input type="tel" placeholder="+91XXXXXXXXXX" value={phone}
+              <input type="tel" placeholder="XXXXXXXXXX" value={phone}
                 onChange={e => setPhone(e.target.value)} autoComplete="tel" />
             </div>
             <div className="field">
