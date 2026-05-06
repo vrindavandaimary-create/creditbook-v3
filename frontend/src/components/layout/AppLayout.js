@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useOffline } from '../../offline/useOffline';
 
 const NAV = [
   { path:'/', label:'Home', icon: a => (
@@ -15,8 +16,7 @@ const NAV = [
   )},
   { path:'/reports', label:'Analytics', icon: a => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2.5:2} strokeLinecap="round">
-      <path d="M21 21H4.6A1.6 1.6 0 013 19.4V3"/>
-      <path d="M7 14l4-4 4 4 4-4"/>
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
     </svg>
   )},
   { path:'/more', label:'More', icon: a => (
@@ -32,10 +32,41 @@ export default function AppLayout() {
   const navigate     = useNavigate();
   const { pathname } = useLocation();
   const isActive     = p => p==='/' ? pathname==='/' : pathname.startsWith(p);
+  const { isOnline, syncing, pendingCount } = useOffline();
 
   return (
     <div style={{ maxWidth:'var(--maxw)', margin:'0 auto', minHeight:'100vh', background:'var(--bg)', position:'relative' }}>
-      <Outlet />
+
+      {/* ── Offline / Sync Banner ── */}
+      {(!isOnline || syncing || pendingCount > 0) && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '100%',
+          maxWidth: 'var(--maxw)',
+          zIndex: 999,
+          background: syncing ? '#1a4fd6' : !isOnline ? '#e53935' : '#f57c00',
+          color: 'white',
+          textAlign: 'center',
+          padding: '7px 16px',
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: .3,
+        }}>
+          {syncing
+            ? '☁️  Syncing changes…'
+            : !isOnline
+              ? `📴  Offline mode${pendingCount > 0 ? ` · ${pendingCount} pending` : ''}`
+              : `🕐  ${pendingCount} change${pendingCount>1?'s':''} waiting to sync`}
+        </div>
+      )}
+
+      <div style={{ paddingTop: (!isOnline || syncing || pendingCount > 0) ? 32 : 0 }}>
+        <Outlet />
+      </div>
+
       <nav className="bottom-nav" style={{ height:'var(--nav-h)' }}>
         {NAV.map(item => {
           const active = isActive(item.path);
