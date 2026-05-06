@@ -7,8 +7,9 @@ export default function More() {
   const { user, logout } = useAuth();
 
   const items = [
-    { icon:'🧾', label:'Billing', desc:'Create & manage bills with receipts', path:'/more/billing' },
-    { icon:'👤', label:'Profile', desc:'Update your account & business info', path:'/more/profile' },
+    { icon:'🧾', label:'Billing',          desc:'Create & manage bills with receipts',      path:'/more/billing' },
+    { icon:'📥', label:'Download Reports', desc:'Sales, P&L, GST, Balance Sheet & more',   path:'/more/download-reports' },
+    { icon:'👤', label:'Profile',          desc:'Update your account & business info',      path:'/more/profile' },
   ];
 
   return (
@@ -33,9 +34,7 @@ export default function More() {
             </button>
           ))}
         </div>
-        <button
-          onClick={() => logout()}
-          className="btn btn-full"
+        <button onClick={() => logout()} className="btn btn-full"
           style={{ background:'var(--red-lt)', color:'var(--red)', fontWeight:700, padding:14 }}>
           🚪 Logout
         </button>
