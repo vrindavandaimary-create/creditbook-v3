@@ -33,9 +33,9 @@ export const refreshCache = async () => {
       apiCall('GET', '/api/transactions?limit=500'),
     ]);
     await Promise.all([
-      cache.saveCategories(cats.data   || []),
-      cache.saveParties(parties.data   || []),
-      cache.saveTransactions(txs.data  || []),
+      cache.saveCategories(cats.data?.data   || cats.data || []),
+      cache.saveParties(parties.data?.data   || parties.data || []),
+      cache.saveTransactions(txs.data?.data  || txs.data || []),
     ]);
     console.log('[Sync] Cache refreshed');
   } catch(e) {
