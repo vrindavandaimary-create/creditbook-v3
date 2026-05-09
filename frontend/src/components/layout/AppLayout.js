@@ -15,7 +15,8 @@ const NAV = [
   )},
   { path:'/reports', label:'Analytics', icon: a => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2.5:2} strokeLinecap="round">
-      <path d="M18 20V10M12 20V4M6 20v-6"/>
+      <path d="M21 21H4.6A1.6 1.6 0 013 19.4V3"/>
+      <path d="M7 14l4-4 4 4 4-4"/>
     </svg>
   )},
   { path:'/more', label:'More', icon: a => (
