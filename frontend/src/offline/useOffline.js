@@ -37,7 +37,7 @@ export const useOffline = () => {
       setSyncing(false);
       syncLock.current = false;
     }
-  }, [syncing, refreshPendingCount]);
+  }, [refreshPendingCount]);
 
   useEffect(() => {
     const goOnline = () => {
