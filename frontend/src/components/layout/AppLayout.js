@@ -1,6 +1,5 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useOffline } from '../../offline/useOffline';
 
 const NAV = [
   { path:'/', label:'Home', icon: a => (
@@ -32,41 +31,10 @@ export default function AppLayout() {
   const navigate     = useNavigate();
   const { pathname } = useLocation();
   const isActive     = p => p==='/' ? pathname==='/' : pathname.startsWith(p);
-  const { isOnline, syncing, pendingCount } = useOffline();
 
   return (
     <div style={{ maxWidth:'var(--maxw)', margin:'0 auto', minHeight:'100vh', background:'var(--bg)', position:'relative' }}>
-
-      {/* ── Offline / Sync Banner ── */}
-      {(!isOnline || syncing || pendingCount > 0) && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '100%',
-          maxWidth: 'var(--maxw)',
-          zIndex: 999,
-          background: syncing ? '#1a4fd6' : !isOnline ? '#e53935' : '#f57c00',
-          color: 'white',
-          textAlign: 'center',
-          padding: '7px 16px',
-          fontSize: 12,
-          fontWeight: 700,
-          letterSpacing: .3,
-        }}>
-          {syncing
-            ? '☁️  Syncing changes…'
-            : !isOnline
-              ? `📴  Offline mode${pendingCount > 0 ? ` · ${pendingCount} pending` : ''}`
-              : `🕐  ${pendingCount} change${pendingCount>1?'s':''} waiting to sync`}
-        </div>
-      )}
-
-      <div style={{ paddingTop: (!isOnline || syncing || pendingCount > 0) ? 32 : 0 }}>
-        <Outlet />
-      </div>
-
+      <Outlet />
       <nav className="bottom-nav" style={{ height:'var(--nav-h)' }}>
         {NAV.map(item => {
           const active = isActive(item.path);
