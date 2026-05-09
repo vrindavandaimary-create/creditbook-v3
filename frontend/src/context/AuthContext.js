@@ -21,13 +21,13 @@ export function AuthProvider({ children }) {
   };
 
   const verifyOtp = async (phone, otp) => {
-    const r = await authAPI.verifyOtp({ phone, otp });
+    const r = await authAPI.verifyOtp(phone, otp);
     persist(r.data.token, r.data.user);
     return r.data;
   };
 
   const verifyRegisterOtp = async (phone, otp) => {
-    const r = await authAPI.verifyRegisterOtp({ phone, otp });
+    const r = await authAPI.verifyRegisterOtp(phone, otp);
     persist(r.data.token, r.data.user);
     return r.data;
   };
