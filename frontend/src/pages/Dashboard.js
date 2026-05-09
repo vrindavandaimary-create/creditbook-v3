@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { getSocket } from '../api/socket';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { dashAPI, categoryAPI, partyAPI } from '../api';
@@ -254,6 +255,15 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  /* Real-time: reload when data changes via socket */
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handler = () => load();
+    socket.on('data:changed', handler);
+    return () => socket.off('data:changed', handler);
+  }, [load]);
 
   if (loading) return <div className="spinner"><div className="spin"/></div>;
 
