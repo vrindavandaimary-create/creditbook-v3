@@ -25,7 +25,7 @@ client.interceptors.response.use(
     }
 
     /* ── Offline interception ── */
-    const isOffline = !navigator.onLine || err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED';
+    const isOffline = !navigator.onLine || err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED' || err.message === 'Network Error' || !err.response;
     if (isOffline) {
       const cfg = err.config;
       const method = cfg.method?.toUpperCase();
