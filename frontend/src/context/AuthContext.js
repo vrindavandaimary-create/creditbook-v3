@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../api';
+import { connectSocket, disconnectSocket } from '../api/socket';
 
 const Ctx = createContext(null);
 export const useAuth = () => useContext(Ctx);
@@ -12,6 +13,11 @@ export function AuthProvider({ children }) {
   });
   const [ready, setReady] = useState(false);
 
+  useEffect(() => {
+    if (token) connectSocket(token);
+    else disconnectSocket();
+  }, [token]);
+
   useEffect(() => { setReady(true); }, []);
 
   const persist = (tok, usr) => {
@@ -21,18 +27,19 @@ export function AuthProvider({ children }) {
   };
 
   const verifyOtp = async (phone, otp) => {
-    const r = await authAPI.verifyOtp(phone, otp);
+    const r = await authAPI.verifyOtp({ phone, otp });
     persist(r.data.token, r.data.user);
     return r.data;
   };
 
   const verifyRegisterOtp = async (phone, otp) => {
-    const r = await authAPI.verifyRegisterOtp(phone, otp);
+    const r = await authAPI.verifyRegisterOtp({ phone, otp });
     persist(r.data.token, r.data.user);
     return r.data;
   };
 
   const logout = () => {
+    disconnectSocket();
     setToken(null); setUser(null);
     localStorage.removeItem('cb3_token');
     localStorage.removeItem('cb3_user');
