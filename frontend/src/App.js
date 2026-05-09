@@ -14,8 +14,7 @@ import PartyDetail from './pages/parties/PartyDetail';
 import Reports     from './pages/Reports';
 import More        from './pages/More';
 import Billing     from './pages/billing/Billing';
-import Profile           from './pages/Profile';
-import DownloadReports   from './pages/DownloadReports';
+import Profile     from './pages/Profile';
 
 function Private({ children }) {
   const { token } = useAuth();
@@ -52,8 +51,7 @@ export default function App() {
             <Route path="reports"       element={<Reports />} />
             <Route path="more"          element={<More />} />
             <Route path="more/billing"  element={<Billing />} />
-            <Route path="more/profile"           element={<Profile />} />
-            <Route path="more/download-reports"  element={<DownloadReports />} />
+            <Route path="more/profile"  element={<Profile />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
