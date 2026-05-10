@@ -108,7 +108,7 @@ function ThreeDotMenu({ cat, parties, onEdit, onDelete, onClose }) {
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
           <div style={{ width:38, height:38, borderRadius:10, background:cat.color+'20', display:'flex', alignItems:'center', justifyContent:'center', color:cat.color, fontWeight:800, fontSize:16 }}>
-            {cat.name[0]}
+            {cat.name[0].toUpperCase()}
           </div>
           <div>
             <p style={{ fontWeight:800, fontSize:16 }}>{cat.name}</p>
@@ -180,7 +180,7 @@ function CategoryDetailPage({ cat, onBack, onEdit, onDelete, navigate }) {
           <button onClick={onBack}
             style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, color:'#555', cursor:'pointer', flexShrink:0 }}>←</button>
           <div style={{ width:36, height:36, borderRadius:10, background:cat.color, display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:16, flexShrink:0 }}>
-            {cat.name[0]}
+            {cat.name[0].toUpperCase()}
           </div>
           <h2 style={{ flex:1, fontSize:17, fontWeight:800, margin:0 }}>{cat.name}</h2>
           <button onClick={() => setShowMenu(true)}
@@ -398,7 +398,51 @@ export default function Dashboard() {
           )}
         </div>
 
-  
+        {/* ── Quick Actions ── */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:12 }}>
+          {[
+            { label:'Add Party',   icon:'👤', action:() => navigate('/parties/add'), bg:'#e8eeff', color:'#1a4fd6' },
+            { label:'All Parties', icon:'🤝', action:() => navigate('/parties'),     bg:'#e6f9f0', color:'#1a9e5c' },
+            { label:'Reports',     icon:'📊', action:() => navigate('/reports'),     bg:'#fff0f0', color:'#e53935' },
+          ].map(q => (
+            <button key={q.label} onClick={q.action}
+              style={{ background:'white', border:'none', borderRadius:14, padding:'12px 6px', display:'flex', flexDirection:'column', alignItems:'center', gap:5, cursor:'pointer', boxShadow:'0 1px 4px rgba(0,0,0,.05)' }}>
+              <div style={{ width:38, height:38, borderRadius:12, background:q.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:19 }}>{q.icon}</div>
+              <p style={{ fontSize:11, fontWeight:700, color:q.color }}>{q.label}</p>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Recent Transactions ── */}
+        {recentTx.length > 0 && (
+          <div style={{ marginBottom:12 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <p style={{ fontSize:13, fontWeight:800, color:'#1a1d2e' }}>Recent Transactions</p>
+              <button onClick={() => navigate('/reports')} style={{ fontSize:12, color:'#1a4fd6', fontWeight:700, background:'none', border:'none', cursor:'pointer' }}>See all</button>
+            </div>
+            <div style={{ background:'white', borderRadius:14, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,.05)' }}>
+              {recentTx.slice(0,5).map((tx, i) => (
+                <div key={tx._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 14px', borderBottom:i<Math.min(recentTx.length,5)-1?'1px solid #f8f8f8':'none' }}>
+                  <div style={{ width:34, height:34, borderRadius:'50%', background:tx.type==='got'?'#e6f9f0':'#fff0f0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={tx.type==='got'?'#1a9e5c':'#e53935'} strokeWidth="2.5" strokeLinecap="round">
+                      {tx.type==='got'
+                        ? <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/></>
+                        : <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="19 12 12 5 5 12"/></>
+                      }
+                    </svg>
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ fontSize:13, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{tx.partyId?.name||'—'}</p>
+                    <p style={{ fontSize:11, color:'#bbb', marginTop:1 }}>{fmtDate(tx.date)}</p>
+                  </div>
+                  <p style={{ fontSize:14, fontWeight:800, color:tx.type==='got'?'#1a9e5c':'#e53935', flexShrink:0 }}>
+                    {tx.type==='got'?'+':'-'}₹{fmt(tx.amount,0)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Categories ── */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
@@ -429,7 +473,7 @@ export default function Dashboard() {
                     {/* Avatar row + 3-dot */}
                     <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:6 }}>
                       <div style={{ width:34, height:34, borderRadius:10, background:cat.color+'18', display:'flex', alignItems:'center', justifyContent:'center', color:cat.color, fontWeight:800, fontSize:15 }}>
-                        {cat.name[0]}
+                        {cat.name[0].toUpperCase()}
                       </div>
                       {/* 3-dot button — stops propagation so card tap doesn't fire */}
                       <button
