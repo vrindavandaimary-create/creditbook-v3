@@ -11,7 +11,7 @@ const addTransaction = async (req, res) => {
     const n = Number(amount);
     if (isNaN(n) || n <= 0)
       return res.status(400).json({ success: false, message: 'Amount must be a positive number.' });
-    if (n > 1000000)
+    if (n > 100000)
       return res.status(400).json({ success: false, message: 'Amount cannot exceed ₹1,00,000.' });
 
     const existing = await Party.findOne({ _id: partyId, userId: req.user._id, isActive: true });
