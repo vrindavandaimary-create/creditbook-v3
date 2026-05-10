@@ -340,13 +340,7 @@ export default function Dashboard() {
   if (loading) return <div className="spinner"><div className="spin"/></div>;
 
   const d   = data || { grouped:[], totalToGet:0, totalToGive:0, recentTransactions:[] };
-  const net = d.totalToGet - d.totalToGive;
   const recentTx = d.recentTransactions || [];
-
-  /* For net balance — show only what's relevant */
-  const netIsGet  = net > 0;
-  const netIsGive = net < 0;
-  const netColor  = netIsGet ? '#1a9e5c' : netIsGive ? '#e53935' : '#888';
 
   return (
     <div style={{ background:'#f5f7fa', minHeight:'100vh', paddingBottom:90 }}>
@@ -368,99 +362,43 @@ export default function Dashboard() {
 
       <div style={{ padding:'12px 16px 0' }}>
 
-        {/* ── Compact Financial Summary — show only relevant side ── */}
-        <div style={{ background:'white', borderRadius:16, padding:'14px 16px', marginBottom:12, boxShadow:'0 1px 8px rgba(0,0,0,.07)' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: (d.totalToGet>0 && d.totalToGive>0) ? 12 : 0 }}>
-            <div>
-              <p style={{ fontSize:11, color:'#aaa', marginBottom:3 }}>Net Balance</p>
-              <p style={{ fontSize:30, fontWeight:800, color:netColor, lineHeight:1 }}>
-                {net===0 ? '₹0' : `${netIsGet?'+':'-'}₹${fmt(Math.abs(net),0)}`}
-              </p>
-            </div>
-            <div style={{ textAlign:'right' }}>
-              {netIsGet  && <p style={{ fontSize:12, fontWeight:700, color:'#1a9e5c' }}>You will get</p>}
-              {netIsGive && <p style={{ fontSize:12, fontWeight:700, color:'#e53935' }}>You will give</p>}
-              {net===0   && <p style={{ fontSize:12, fontWeight:700, color:'#888' }}>All settled</p>}
-              <p style={{ fontSize:11, color:'#aaa', marginTop:2 }}>
-                {d.grouped.reduce((s,g)=>s+g.parties.length,0)} parties total
-              </p>
-            </div>
-          </div>
-
-          {/* Only show both rows when both sides exist */}
-          {d.totalToGet>0 && d.totalToGive>0 && (
+        {/* ── Financial Summary — Get / Give only, no net balance ── */}
+        <div style={{ background:'white', borderRadius:16, padding:'12px 14px', marginBottom:12, boxShadow:'0 1px 8px rgba(0,0,0,.07)' }}>
+          {d.totalToGet===0 && d.totalToGive===0 ? (
+            <p style={{ fontSize:13, fontWeight:600, color:'#aaa', textAlign:'center', padding:'4px 0' }}>All accounts settled ✓</p>
+          ) : d.totalToGet>0 && d.totalToGive>0 ? (
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-              <div style={{ background:'#e6f9f0', borderRadius:10, padding:'8px 12px' }}>
-                <p style={{ fontSize:10, fontWeight:700, color:'#1a9e5c', marginBottom:2, textTransform:'uppercase' }}>You get</p>
-                <p style={{ fontSize:18, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(d.totalToGet,0)}</p>
+              <div style={{ background:'#e6f9f0', borderRadius:12, padding:'10px 12px' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'#1a9e5c', marginBottom:4, textTransform:'uppercase', letterSpacing:.3 }}>You will get</p>
+                <p style={{ fontSize:20, fontWeight:800, color:'#1a9e5c', lineHeight:1 }}>₹{fmt(d.totalToGet,0)}</p>
+                <p style={{ fontSize:10, color:'#aaa', marginTop:3 }}>{d.grouped.reduce((s,g)=>s+g.parties.filter(p=>p.balance>0).length,0)} parties</p>
               </div>
-              <div style={{ background:'#fff0f0', borderRadius:10, padding:'8px 12px' }}>
-                <p style={{ fontSize:10, fontWeight:700, color:'#e53935', marginBottom:2, textTransform:'uppercase' }}>You give</p>
-                <p style={{ fontSize:18, fontWeight:800, color:'#e53935' }}>₹{fmt(d.totalToGive,0)}</p>
+              <div style={{ background:'#fff0f0', borderRadius:12, padding:'10px 12px' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'#e53935', marginBottom:4, textTransform:'uppercase', letterSpacing:.3 }}>You will give</p>
+                <p style={{ fontSize:20, fontWeight:800, color:'#e53935', lineHeight:1 }}>₹{fmt(d.totalToGive,0)}</p>
+                <p style={{ fontSize:10, color:'#aaa', marginTop:3 }}>{d.grouped.reduce((s,g)=>s+g.parties.filter(p=>p.balance<0).length,0)} parties</p>
               </div>
             </div>
-          )}
-          {/* Only get */}
-          {d.totalToGet>0 && d.totalToGive===0 && (
-            <div style={{ background:'#e6f9f0', borderRadius:10, padding:'8px 12px' }}>
-              <p style={{ fontSize:10, fontWeight:700, color:'#1a9e5c', marginBottom:2, textTransform:'uppercase' }}>You will get from</p>
-              <p style={{ fontSize:16, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(d.totalToGet,0)}</p>
+          ) : d.totalToGet>0 ? (
+            <div style={{ background:'#e6f9f0', borderRadius:12, padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div>
+                <p style={{ fontSize:10, fontWeight:700, color:'#1a9e5c', marginBottom:3, textTransform:'uppercase' }}>You will get</p>
+                <p style={{ fontSize:22, fontWeight:800, color:'#1a9e5c', lineHeight:1 }}>₹{fmt(d.totalToGet,0)}</p>
+              </div>
+              <p style={{ fontSize:12, color:'#1a9e5c', fontWeight:600 }}>{d.grouped.reduce((s,g)=>s+g.parties.filter(p=>p.balance>0).length,0)} parties</p>
             </div>
-          )}
-          {/* Only give */}
-          {d.totalToGive>0 && d.totalToGet===0 && (
-            <div style={{ background:'#fff0f0', borderRadius:10, padding:'8px 12px' }}>
-              <p style={{ fontSize:10, fontWeight:700, color:'#e53935', marginBottom:2, textTransform:'uppercase' }}>You will give to</p>
-              <p style={{ fontSize:16, fontWeight:800, color:'#e53935' }}>₹{fmt(d.totalToGive,0)}</p>
+          ) : (
+            <div style={{ background:'#fff0f0', borderRadius:12, padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div>
+                <p style={{ fontSize:10, fontWeight:700, color:'#e53935', marginBottom:3, textTransform:'uppercase' }}>You will give</p>
+                <p style={{ fontSize:22, fontWeight:800, color:'#e53935', lineHeight:1 }}>₹{fmt(d.totalToGive,0)}</p>
+              </div>
+              <p style={{ fontSize:12, color:'#e53935', fontWeight:600 }}>{d.grouped.reduce((s,g)=>s+g.parties.filter(p=>p.balance<0).length,0)} parties</p>
             </div>
           )}
         </div>
 
-        {/* ── Quick Actions ── */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:12 }}>
-          {[
-            { label:'Add Party',   icon:'👤', action:() => navigate('/parties/add'), bg:'#e8eeff', color:'#1a4fd6' },
-            { label:'All Parties', icon:'🤝', action:() => navigate('/parties'),     bg:'#e6f9f0', color:'#1a9e5c' },
-            { label:'Reports',     icon:'📊', action:() => navigate('/reports'),     bg:'#fff0f0', color:'#e53935' },
-          ].map(q => (
-            <button key={q.label} onClick={q.action}
-              style={{ background:'white', border:'none', borderRadius:14, padding:'12px 6px', display:'flex', flexDirection:'column', alignItems:'center', gap:5, cursor:'pointer', boxShadow:'0 1px 4px rgba(0,0,0,.05)' }}>
-              <div style={{ width:38, height:38, borderRadius:12, background:q.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:19 }}>{q.icon}</div>
-              <p style={{ fontSize:11, fontWeight:700, color:q.color }}>{q.label}</p>
-            </button>
-          ))}
-        </div>
-
-        {/* ── Recent Transactions ── */}
-        {recentTx.length > 0 && (
-          <div style={{ marginBottom:12 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <p style={{ fontSize:13, fontWeight:800, color:'#1a1d2e' }}>Recent Transactions</p>
-              <button onClick={() => navigate('/reports')} style={{ fontSize:12, color:'#1a4fd6', fontWeight:700, background:'none', border:'none', cursor:'pointer' }}>See all</button>
-            </div>
-            <div style={{ background:'white', borderRadius:14, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,.05)' }}>
-              {recentTx.slice(0,5).map((tx, i) => (
-                <div key={tx._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 14px', borderBottom:i<Math.min(recentTx.length,5)-1?'1px solid #f8f8f8':'none' }}>
-                  <div style={{ width:34, height:34, borderRadius:'50%', background:tx.type==='got'?'#e6f9f0':'#fff0f0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={tx.type==='got'?'#1a9e5c':'#e53935'} strokeWidth="2.5" strokeLinecap="round">
-                      {tx.type==='got'
-                        ? <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/></>
-                        : <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="19 12 12 5 5 12"/></>
-                      }
-                    </svg>
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <p style={{ fontSize:13, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{tx.partyId?.name||'—'}</p>
-                    <p style={{ fontSize:11, color:'#bbb', marginTop:1 }}>{fmtDate(tx.date)}</p>
-                  </div>
-                  <p style={{ fontSize:14, fontWeight:800, color:tx.type==='got'?'#1a9e5c':'#e53935', flexShrink:0 }}>
-                    {tx.type==='got'?'+':'-'}₹{fmt(tx.amount,0)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+  
 
         {/* ── Categories ── */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
