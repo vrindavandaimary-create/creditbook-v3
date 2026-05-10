@@ -11,8 +11,8 @@ const addTransaction = async (req, res) => {
     const n = Number(amount);
     if (isNaN(n) || n <= 0)
       return res.status(400).json({ success: false, message: 'Amount must be a positive number.' });
-    if (n > 100000)
-      return res.status(400).json({ success: false, message: 'Amount cannot exceed ₹1,00,000.' });
+    if (n > 1000000000)
+      return res.status(400).json({ success: false, message: 'Amount cannot exceed ₹1,00,00,00,000.' });
 
     const existing = await Party.findOne({ _id: partyId, userId: req.user._id, isActive: true });
     if (!existing) return res.status(404).json({ success: false, message: 'Party not found.' });
@@ -87,11 +87,12 @@ const deleteTransaction = async (req, res) => {
 const updateTransaction = async (req, res) => {
   try {
     const { amount, type, note, date } = req.body;
-    const tx = await Transaction.findById(req.params.id).populate('partyId');
+    /* Find tx AND verify it belongs to this user in one query */
+    const tx = await Transaction.findOne({ _id: req.params.id, userId: req.user._id });
     if (!tx) return res.status(404).json({ success:false, message:'Transaction not found.' });
 
-    /* Verify ownership via party */
-    const party = await Party.findOne({ _id: tx.partyId._id, userId: req.user._id });
+    /* Get the party */
+    const party = await Party.findOne({ _id: tx.partyId, userId: req.user._id });
     if (!party) return res.status(403).json({ success:false, message:'Not authorised.' });
 
     const oldAmount = tx.amount;
