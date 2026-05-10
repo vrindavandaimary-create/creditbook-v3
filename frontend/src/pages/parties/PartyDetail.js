@@ -138,79 +138,149 @@ function AddTxScreen({ party, type, onClose, onSaved, navigate }) {
 
 /* ─── Edit Transaction Sheet ─── */
 function EditTxSheet({ tx, onClose, onSaved }) {
-  const [amount, setAmount] = useState(String(tx.amount));
+  const [amount, setAmount] = useState(String(tx.amount || ''));
   const [type,   setType]   = useState(tx.type);
-  const [note,   setNote]   = useState(tx.note||'');
-  const [date,   setDate]   = useState(tx.date ? (() => {
+  const [note,   setNote]   = useState(tx.note || '');
+  const [date,   setDate]   = useState(() => {
     const d = new Date(tx.date);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  })() : todayStr());
+  });
   const [saving, setSaving] = useState(false);
-  const dateRef  = useRef(null);
-  const fmtDD    = d => new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+
+  const dateRef = useRef(null);
 
   const save = async () => {
     const n = parseFloat(amount);
-    if (!n||n<=0||isNaN(n)) return toast.error('Enter a valid amount');
-    if (n>1000000000)       return toast.error('Amount exceeds limit');
+    if (!n || n <= 0 || isNaN(n)) {
+      return toast.error('Please enter a valid amount');
+    }
+    if (n > 1000000000) {
+      return toast.error('Amount cannot exceed ₹1,00,00,00,000');
+    }
+
     setSaving(true);
     try {
-      await txAPI.update(tx._id, { amount:n, type, note, date });
-      toast.success('Entry updated!'); onSaved();
-    } catch(err) { toast.error(err.response?.data?.message||'Failed'); setSaving(false); }
+      const payload = {
+        amount: n,
+        type,
+        note: note.trim(),
+        date
+      };
+
+      const response = await txAPI.update(tx._id, payload);
+
+      if (response.data?.success) {
+        toast.success('Transaction updated successfully!');
+        onSaved();
+      } else {
+        toast.error(response.data?.message || 'Update failed');
+      }
+    } catch (err) {
+      console.error('Edit transaction error:', err.response?.data || err);
+      toast.error(
+        err.response?.data?.message || 
+        'Failed to update transaction. Please try again.'
+      );
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const fmtDD = (d) => new Date(d).toLocaleDateString('en-IN', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="sheet" onClick={e=>e.stopPropagation()} style={{ maxHeight:'92vh', overflowY:'auto', padding:0, borderRadius:'20px 20px 0 0' }}>
-        {/* Header */}
-        <div style={{ padding:'16px 18px', borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <h3 style={{ fontWeight:800, fontSize:17, margin:0 }}>Edit Entry</h3>
-          <button onClick={onClose} style={{ width:30, height:30, borderRadius:'50%', background:'#f5f5f5', border:'none', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#555' }}>×</button>
+      <div className="sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '92vh', overflowY: 'auto' }}>
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ fontWeight: 800, fontSize: 17, margin: 0 }}>Edit Transaction</h3>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: '50%', background: '#f5f5f5', border: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
         </div>
 
-        <div style={{ padding:'16px 18px' }}>
-          {/* Type toggle */}
-          <p style={{ fontSize:11, fontWeight:700, color:'#aaa', textTransform:'uppercase', marginBottom:8 }}>Type</p>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
-            {[{v:'got',label:'Received',color:'#1a9e5c',bg:'#e8f5e9'},{v:'gave',label:'Given',color:'#e53935',bg:'#ffebee'}].map(o=>(
-              <button key={o.v} onClick={()=>setType(o.v)}
-                style={{ padding:'12px', borderRadius:12, border:`2px solid ${type===o.v?o.color:'#e0e0e0'}`, background:type===o.v?o.bg:'white', fontWeight:700, fontSize:14, color:type===o.v?o.color:'#aaa', cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>
-                {o.label}
+        <div style={{ padding: '18px' }}>
+          {/* Type Toggle */}
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#aaa', marginBottom: 8, textTransform: 'uppercase' }}>Type</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+            {[
+              { value: 'got', label: 'Received', color: '#1a9e5c', bg: '#e8f5e9' },
+              { value: 'gave', label: 'Given', color: '#e53935', bg: '#ffebee' }
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setType(opt.value)}
+                style={{
+                  padding: '14px',
+                  borderRadius: 12,
+                  border: `2px solid ${type === opt.value ? opt.color : '#e0e0e0'}`,
+                  background: type === opt.value ? opt.bg : 'white',
+                  fontWeight: 700,
+                  color: type === opt.value ? opt.color : '#666'
+                }}
+              >
+                {opt.label}
               </button>
             ))}
           </div>
 
           {/* Amount */}
-          <p style={{ fontSize:11, fontWeight:700, color:'#aaa', textTransform:'uppercase', marginBottom:8 }}>Amount</p>
-          <div style={{ background:'#f5f7fa', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
-            <p style={{ fontSize:20, fontWeight:700, color:'#aaa' }}>₹</p>
-            <input type="number" inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)}
-              style={{ flex:1, fontSize:26, fontWeight:800, color:'#1a1d2e', background:'none', border:'none', outline:'none', fontFamily:'inherit' }}/>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#aaa', marginBottom: 8, textTransform: 'uppercase' }}>Amount (₹)</p>
+          <div style={{ background: '#f8f9fa', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              style={{ width: '100%', fontSize: 28, fontWeight: 800, border: 'none', background: 'none', outline: 'none' }}
+              placeholder="0"
+            />
           </div>
 
           {/* Note */}
-          <p style={{ fontSize:11, fontWeight:700, color:'#aaa', textTransform:'uppercase', marginBottom:8 }}>Note</p>
-          <div style={{ background:'#f5f7fa', borderRadius:12, padding:'12px 14px', marginBottom:16 }}>
-            <input placeholder="Add a note (optional)" value={note} onChange={e=>setNote(e.target.value)}
-              style={{ width:'100%', fontSize:15, background:'none', border:'none', outline:'none', color:'#333', fontFamily:'inherit' }}/>
-          </div>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#aaa', marginBottom: 8, textTransform: 'uppercase' }}>Note</p>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Add note (optional)"
+            rows={3}
+            style={{ width: '100%', borderRadius: 12, padding: 14, border: '1.5px solid #e0e0e0', fontSize: 15, resize: 'vertical' }}
+          />
 
           {/* Date */}
-          <p style={{ fontSize:11, fontWeight:700, color:'#aaa', textTransform:'uppercase', marginBottom:8 }}>Date</p>
-          <div onClick={()=>dateRef.current?.showPicker?.()??dateRef.current?.click()}
-            style={{ background:'#f5f7fa', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer', marginBottom:20, position:'relative' }}>
-            <p style={{ fontSize:15, fontWeight:600, color:'#333' }}>{fmtDD(date)}</p>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-            <input ref={dateRef} type="date" value={date} max={todayStr()} onChange={e=>setDate(e.target.value)}
-              style={{ position:'absolute', opacity:0, width:'100%', height:'100%', top:0, left:0, cursor:'pointer' }}/>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#aaa', margin: '16px 0 8px', textTransform: 'uppercase' }}>Date</p>
+          <div
+            onClick={() => dateRef.current?.showPicker?.() || dateRef.current?.click()}
+            style={{ background: '#f8f9fa', borderRadius: 12, padding: '14px 16px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          >
+            <span style={{ fontSize: 15, fontWeight: 600 }}>{fmtDD(date)}</span>
+            <input
+              ref={dateRef}
+              type="date"
+              value={date}
+              max={new Date().toISOString().split('T')[0]}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%' }}
+            />
           </div>
 
-          {/* Save */}
-          <button onClick={save} disabled={saving||!amount}
-            style={{ width:'100%', padding:'15px', borderRadius:50, border:'none', background:!amount?'#e0e0e0':'#1a4fd6', color:!amount?'#aaa':'white', fontSize:16, fontWeight:800, fontFamily:'inherit', cursor:!amount?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-            {!saving&&<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
-            {saving?'Saving…':'Save Changes'}
+          {/* Save Button */}
+          <button
+            onClick={save}
+            disabled={saving || !amount}
+            style={{
+              marginTop: 24,
+              width: '100%',
+              padding: '16px',
+              borderRadius: 50,
+              background: !amount || saving ? '#e0e0e0' : '#1a4fd6',
+              color: 'white',
+              fontSize: 16,
+              fontWeight: 700,
+              border: 'none',
+              cursor: saving || !amount ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {saving ? 'Saving Changes...' : 'Save Changes'}
           </button>
         </div>
       </div>
