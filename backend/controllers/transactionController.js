@@ -14,16 +14,46 @@ const addTransaction = async (req, res) => {
     if (n > 10000000)
       return res.status(400).json({ success: false, message: 'Amount cannot exceed ₹1,00,00,000.' });
 
-    const existing = await Party.findOne({ _id: partyId, userId: req.user._id, isActive: true });
-    if (!existing) return res.status(404).json({ success: false, message: 'Party not found.' });
+    const existing = await Party.findOne({
+  _id: partyId,
+  userId: req.user._id,
+  isActive: true
+});
 
-    /* ── Atomic balance update — fixes race condition ── */
-    const delta = type === 'gave' ? +n : -n;
-    const party = await Party.findByIdAndUpdate(
-      partyId,
-      { $inc: { balance: delta } },
-      { new: true }
-    );
+if (!existing) {
+  return res.status(404).json({
+    success: false,
+    message: 'Party not found.'
+  });
+}
+
+/* ── Calculate balance change ── */
+const delta = type === 'gave' ? n : -n;
+
+/* ── Check new balance limit ── */
+const newBalance = existing.balance + delta;
+
+if (Math.abs(newBalance) > 10000000) {
+  return res.status(400).json({
+    success: false,
+    message: 'Net balance cannot exceed ₹1,00,00,000.'
+  });
+}
+
+/* ── Update balance ── */
+const party = await Party.findOneAndUpdate(
+  {
+    _id: partyId,
+    userId: req.user._id,
+    isActive: true
+  },
+  {
+    $inc: { balance: delta }
+  },
+  {
+    new: true
+  }
+);
 
     const tx = await Transaction.create({
       userId: req.user._id, partyId, type,
