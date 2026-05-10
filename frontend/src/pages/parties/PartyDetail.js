@@ -294,27 +294,57 @@ export default function PartyDetail() {
     <div style={{ background:'#f2f2f2', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
 
       {/* Header */}
-      <div style={{ background:'white', borderBottom:'1px solid #eee', padding:'12px 16px', display:'flex', alignItems:'center', gap:12, position:'sticky', top:0, zIndex:100 }}>
-        <button onClick={()=>navigate(-1)} style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#444', flexShrink:0 }}>←</button>
-        <div style={{ width:40, height:40, borderRadius:'50%', background:avatarColor(party.name), display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:18, flexShrink:0 }}>
-          {avatarLetter(party.name)}
-        </div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <h2 style={{ fontSize:17, fontWeight:800, margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{party.name}</h2>
-          <p style={{ fontSize:11, color:'#aaa', marginTop:1 }}>View Profile</p>
-        </div>
-        <button onClick={()=>{ setShowMenu(true); setEditForm({name:party.name, categoryId:party.categoryId?._id||'', phone:party.phone||'', address:party.address||'', notes:party.notes||''}); }}
-          style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round">
-            <circle cx="12" cy="5" r="1" fill="#555"/><circle cx="12" cy="12" r="1" fill="#555"/><circle cx="12" cy="19" r="1" fill="#555"/>
-          </svg>
-        </button>
-        {party.phone && (
-          <a href={`tel:${party.phone}`} style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', display:'flex', alignItems:'center', justifyContent:'center', textDecoration:'none', flexShrink:0 }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .89h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-          </a>
-        )}
-      </div>
+<div style={{ background: 'white', borderBottom: '1px solid #eee', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 100 }}>
+  <button 
+    onClick={() => navigate(-1)} 
+    style={{ width: 36, height: 36, borderRadius: '50%', background: '#f5f5f5', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444', flexShrink: 0 }}
+  >
+    ←
+  </button>
+
+  <div style={{ width: 40, height: 40, borderRadius: '50%', background: avatarColor(party.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 18, flexShrink: 0 }}>
+    {avatarLetter(party.name)}
+  </div>
+
+  <div style={{ flex: 1, minWidth: 0 }} onClick={() => setShowEdit(true)} >
+    <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {party.name}
+    </h2>
+    <p style={{ 
+      fontSize: 13, 
+      color: '#1a4fd6', 
+      marginTop: 1, 
+      fontWeight: 600,
+      cursor: 'pointer',
+      textDecoration: 'underline',
+      textUnderlineOffset: '2px'
+    }}>
+      View Profile
+    </p>
+  </div>
+
+  <button 
+    onClick={() => { setShowMenu(true); setEditForm({name: party.name, categoryId: party.categoryId?._id || '', phone: party.phone || '', address: party.address || '', notes: party.notes || ''}); }}
+    style={{ width: 36, height: 36, borderRadius: '50%', background: '#f5f5f5', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+  >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="5" r="1" fill="#555"/>
+      <circle cx="12" cy="12" r="1" fill="#555"/>
+      <circle cx="12" cy="19" r="1" fill="#555"/>
+    </svg>
+  </button>
+
+  {party.phone && (
+    <a 
+      href={`tel:${party.phone}`} 
+      style={{ width: 36, height: 36, borderRadius: '50%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .89h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+      </svg>
+    </a>
+  )}
+</div>
 
       {/* Transaction list */}
       <div style={{ flex:1, overflowY:'auto', paddingBottom:160 }}>
