@@ -193,7 +193,16 @@ function CategoryDetailPage({ cat, onBack, onEdit, onDelete, navigate }) {
         {/* Summary card — compact, OkCredit style */}
         <div style={{ background:'white', borderRadius:16, padding:'14px 16px', marginBottom:14, boxShadow:'0 1px 6px rgba(0,0,0,.06)' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: showBothSides ? 10 : 0 }}>
-        
+            <div>
+              <p style={{ fontSize:11, color:'#aaa', marginBottom:2 }}>Net Balance</p>
+              <p style={{ fontSize:26, fontWeight:800, color:net>=0?'#1a9e5c':'#e53935', lineHeight:1 }}>
+                ₹{fmt(Math.abs(net),0)}
+              </p>
+            </div>
+            <div style={{ textAlign:'right' }}>
+              <p style={{ fontSize:12, color:net>=0?'#1a9e5c':'#e53935', fontWeight:700 }}>
+                {net>0?'You will get':net<0?'You will give':'All settled'}
+              </p>
               <p style={{ fontSize:11, color:'#aaa', marginTop:2 }}>{parties.length} {parties.length===1?'party':'parties'}</p>
             </div>
           </div>
@@ -385,6 +394,7 @@ export default function Dashboard() {
           )}
         </div>
 
+        
 
         {/* ── Categories ── */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
