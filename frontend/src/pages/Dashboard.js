@@ -37,7 +37,8 @@ function CategoryFormSheet({ onClose, onDone, existing }) {
           <p style={{ fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', marginBottom:8 }}>Color</p>
           <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap' }}>
             {COLOR_OPTIONS.map(c=>(
-              <button key={c} type="button" onClick={()=>setColor(c)} style={{ width:30, height:30, borderRadius:'50%', background:c, border:`3px solid ${c===color?'#1a1d2e':'transparent'}`, cursor:'pointer' }}/>
+              <button key={c} type="button" onClick={()=>setColor(c)}
+                style={{ width:30, height:30, borderRadius:'50%', background:c, border:`3px solid ${c===color?'#1a1d2e':'transparent'}`, cursor:'pointer' }}/>
             ))}
           </div>
           <div style={{ display:'flex', gap:10 }}>
@@ -66,7 +67,9 @@ function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <h3 style={{ fontWeight:800, marginBottom:6 }}>Delete "{cat.name}"?</h3>
-        <p style={{ fontSize:13, color:'var(--text2)', marginBottom:16 }}>This category has <b>{cat.partyCount}</b> {cat.partyCount===1?'party':'parties'}.</p>
+        <p style={{ fontSize:13, color:'var(--text2)', marginBottom:16 }}>
+          This category has <b>{cat.partyCount}</b> {cat.partyCount===1?'party':'parties'}.
+        </p>
         {cat.partyCount > 0 && (
           <>
             <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:10, border:`1.5px solid ${action==='delete_parties'?'var(--red)':'var(--border)'}`, marginBottom:8, cursor:'pointer', background:action==='delete_parties'?'var(--red-lt)':'white' }}>
@@ -79,7 +82,8 @@ function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
                 <div style={{ flex:1 }}>
                   <span style={{ fontSize:14, fontWeight:600 }}>Move to another category</span>
                   {action==='move_parties' && (
-                    <select value={moveId} onChange={e=>setMoveId(e.target.value)} style={{ display:'block', marginTop:6, fontSize:13, padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'white', width:'100%' }}>
+                    <select value={moveId} onChange={e=>setMoveId(e.target.value)}
+                      style={{ display:'block', marginTop:6, fontSize:13, padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'white', width:'100%' }}>
                       {otherCategories.map(c=><option key={c._id} value={c._id}>{c.name}</option>)}
                     </select>
                   )}
@@ -92,6 +96,39 @@ function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
           <button className="btn btn-ghost btn-full" onClick={onClose} disabled={loading}>Cancel</button>
           <button className="btn btn-red btn-full" onClick={submit} disabled={loading}>{loading?'Deleting…':'Delete'}</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Three-dot Menu ─── */
+function ThreeDotMenu({ cat, parties, onEdit, onDelete, onClose }) {
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
+          <div style={{ width:38, height:38, borderRadius:10, background:cat.color+'20', display:'flex', alignItems:'center', justifyContent:'center', color:cat.color, fontWeight:800, fontSize:16 }}>
+            {cat.name[0]}
+          </div>
+          <div>
+            <p style={{ fontWeight:800, fontSize:16 }}>{cat.name}</p>
+            <p style={{ fontSize:12, color:'#999' }}>{parties} {parties===1?'party':'parties'}</p>
+          </div>
+        </div>
+        <button onClick={onEdit}
+          style={{ width:'100%', padding:'13px 16px', marginBottom:8, borderRadius:12, border:'1.5px solid #e8ecf0', background:'white', display:'flex', alignItems:'center', gap:12, cursor:'pointer', fontFamily:'inherit', fontSize:14, fontWeight:600, color:'#333' }}>
+          <span style={{ width:32, height:32, borderRadius:8, background:'#e8eeff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>✏️</span>
+          Edit Category
+        </button>
+        <button onClick={onDelete}
+          style={{ width:'100%', padding:'13px 16px', marginBottom:8, borderRadius:12, border:'1.5px solid #ffebee', background:'#fff5f5', display:'flex', alignItems:'center', gap:12, cursor:'pointer', fontFamily:'inherit', fontSize:14, fontWeight:600, color:'#e53935' }}>
+          <span style={{ width:32, height:32, borderRadius:8, background:'#ffebee', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>🗑️</span>
+          Delete Category
+        </button>
+        <button onClick={onClose}
+          style={{ width:'100%', padding:'13px', borderRadius:12, border:'1px solid #eee', background:'white', fontSize:14, fontWeight:600, color:'#888', cursor:'pointer', fontFamily:'inherit' }}>
+          Cancel
+        </button>
       </div>
     </div>
   );
@@ -131,55 +168,75 @@ function CategoryDetailPage({ cat, onBack, onEdit, onDelete, navigate }) {
   const toGive = parties.filter(p=>p.balance<0).reduce((s,p)=>s+Math.abs(p.balance),0);
   const net    = toGet - toGive;
 
+  /* Show only the relevant side — OkCredit style */
+  const showBothSides = toGet > 0 && toGive > 0;
+
   return (
     <div style={{ background:'#f5f7fa', minHeight:'100vh', paddingBottom:90 }}>
 
       {/* Header */}
       <div style={{ background:'white', padding:'0 16px', borderBottom:'1px solid #eee', position:'sticky', top:0, zIndex:100 }}>
         <div style={{ display:'flex', alignItems:'center', gap:12, height:56 }}>
-          <button onClick={onBack} style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, color:'#555', cursor:'pointer', flexShrink:0 }}>←</button>
+          <button onClick={onBack}
+            style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, color:'#555', cursor:'pointer', flexShrink:0 }}>←</button>
           <div style={{ width:36, height:36, borderRadius:10, background:cat.color, display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:16, flexShrink:0 }}>
-            {cat.name[0].toUpperCase()}
+            {cat.name[0]}
           </div>
           <h2 style={{ flex:1, fontSize:17, fontWeight:800, margin:0 }}>{cat.name}</h2>
-          <button onClick={() => setShowMenu(true)} style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+          <button onClick={() => setShowMenu(true)}
+            style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+            </svg>
           </button>
         </div>
       </div>
 
       <div style={{ padding:'14px 16px 0' }}>
-        {/* Summary card */}
-        <div style={{ background:'white', borderRadius:16, padding:'16px 18px', marginBottom:14, boxShadow:'0 1px 8px rgba(0,0,0,.06)' }}>
-          <p style={{ fontSize:12, color:'#888', marginBottom:4 }}>Net Balance</p>
-          <p style={{ fontSize:32, fontWeight:800, color:net>=0?'#1a9e5c':'#e53935', lineHeight:1, marginBottom:12 }}>
-            {net>=0?'+':''}₹{fmt(net,0)}
-          </p>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            <div style={{ background:'#e6f9f0', borderRadius:10, padding:'10px 12px' }}>
-              <p style={{ fontSize:10, fontWeight:700, color:'#1a9e5c', marginBottom:3 }}>YOU WILL GET</p>
-              <p style={{ fontSize:18, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(toGet,0)}</p>
+
+        {/* Summary card — compact, OkCredit style */}
+        <div style={{ background:'white', borderRadius:16, padding:'14px 16px', marginBottom:14, boxShadow:'0 1px 6px rgba(0,0,0,.06)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: showBothSides ? 10 : 0 }}>
+            <div>
+              <p style={{ fontSize:11, color:'#aaa', marginBottom:2 }}>Net Balance</p>
+              <p style={{ fontSize:26, fontWeight:800, color:net>=0?'#1a9e5c':'#e53935', lineHeight:1 }}>
+                ₹{fmt(Math.abs(net),0)}
+              </p>
             </div>
-            <div style={{ background:'#fff0f0', borderRadius:10, padding:'10px 12px' }}>
-              <p style={{ fontSize:10, fontWeight:700, color:'#e53935', marginBottom:3 }}>YOU WILL GIVE</p>
-              <p style={{ fontSize:18, fontWeight:800, color:'#e53935' }}>₹{fmt(toGive,0)}</p>
+            <div style={{ textAlign:'right' }}>
+              <p style={{ fontSize:12, color:net>=0?'#1a9e5c':'#e53935', fontWeight:700 }}>
+                {net>0?'You will get':net<0?'You will give':'All settled'}
+              </p>
+              <p style={{ fontSize:11, color:'#aaa', marginTop:2 }}>{parties.length} {parties.length===1?'party':'parties'}</p>
             </div>
           </div>
+          {showBothSides && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+              <div style={{ background:'#e6f9f0', borderRadius:10, padding:'8px 12px' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'#1a9e5c', marginBottom:2 }}>YOU WILL GET</p>
+                <p style={{ fontSize:16, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(toGet,0)}</p>
+              </div>
+              <div style={{ background:'#fff0f0', borderRadius:10, padding:'8px 12px' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'#e53935', marginBottom:2 }}>YOU WILL GIVE</p>
+                <p style={{ fontSize:16, fontWeight:800, color:'#e53935' }}>₹{fmt(toGive,0)}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Search */}
         <div style={{ background:'white', border:'1.5px solid #e8ecf0', borderRadius:12, padding:'10px 14px', display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
           <input placeholder="Search parties…" value={search} onChange={e=>setSearch(e.target.value)}
-            style={{ flex:1, fontSize:14, background:'none', border:'none', color:'#333' }}/>
+            style={{ flex:1, fontSize:14, background:'none', border:'none', color:'#333', outline:'none' }}/>
         </div>
 
-        {/* Party count */}
-        <p style={{ fontSize:12, fontWeight:700, color:'#888', textTransform:'uppercase', letterSpacing:.5, marginBottom:8 }}>
-          {filtered.length} {filtered.length===1?'Party':'Parties'}
+        <p style={{ fontSize:11, fontWeight:700, color:'#aaa', textTransform:'uppercase', letterSpacing:.8, marginBottom:8 }}>
+          {filtered.length} {filtered.length===1?'party':'parties'}
         </p>
 
-        {/* Party list */}
         {loading ? <div className="spinner"><div className="spin"/></div>
           : filtered.length === 0 ? (
             <div style={{ textAlign:'center', padding:'48px 24px' }}>
@@ -188,9 +245,10 @@ function CategoryDetailPage({ cat, onBack, onEdit, onDelete, navigate }) {
               <p style={{ fontSize:13, color:'#999', marginTop:6 }}>Add a party to this category</p>
             </div>
           ) : (
-            <div style={{ background:'white', borderRadius:16, overflow:'hidden', boxShadow:'0 1px 8px rgba(0,0,0,.06)', marginBottom:16 }}>
+            <div style={{ background:'white', borderRadius:16, overflow:'hidden', boxShadow:'0 1px 6px rgba(0,0,0,.06)', marginBottom:16 }}>
               {filtered.map((p, i) => (
-                <div key={p._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'13px 16px', borderBottom:i<filtered.length-1?'1px solid #f0f0f0':'none', cursor:'pointer' }}
+                <div key={p._id}
+                  style={{ display:'flex', alignItems:'center', gap:12, padding:'13px 16px', borderBottom:i<filtered.length-1?'1px solid #f5f5f5':'none', cursor:'pointer' }}
                   onClick={() => navigate(`/parties/${p._id}`)}>
                   <div style={{ width:44, height:44, borderRadius:'50%', background:avatarColor(p.name), display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:17, flexShrink:0 }}>
                     {avatarLetter(p.name)}
@@ -198,14 +256,14 @@ function CategoryDetailPage({ cat, onBack, onEdit, onDelete, navigate }) {
                   <div style={{ flex:1, minWidth:0 }}>
                     <p style={{ fontWeight:700, fontSize:15, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</p>
                     <p style={{ fontSize:12, color:'#999', marginTop:2 }}>
-                      {p.phone || (p.balance===0?'Settled':'Tap to view transactions')}
+                      {p.balance===0 ? 'Settled' : p.balance>0 ? 'will give you' : 'you will give'}
                     </p>
                   </div>
                   <div style={{ textAlign:'right', flexShrink:0 }}>
                     <p style={{ fontSize:16, fontWeight:800, color:p.balance>0?'#e53935':p.balance<0?'#1a9e5c':'#888' }}>
-                      {p.balance===0?'₹0':`₹${fmt(Math.abs(p.balance),0)}`}
+                      {p.balance===0 ? '₹0' : `₹${fmt(Math.abs(p.balance),0)}`}
                     </p>
-                    <p style={{ fontSize:11, fontWeight:600, color:p.balance>0?'#e53935':p.balance<0?'#1a9e5c':'#888', marginTop:2 }}>
+                    <p style={{ fontSize:11, fontWeight:600, marginTop:2, color:p.balance>0?'#e53935':p.balance<0?'#1a9e5c':'#888' }}>
                       {p.balance>0?'Due':p.balance<0?'Advance':'Settled'}
                     </p>
                   </div>
@@ -216,25 +274,21 @@ function CategoryDetailPage({ cat, onBack, onEdit, onDelete, navigate }) {
         }
       </div>
 
-      {/* FAB */}
       <button className="fab fab-blue" onClick={() => navigate(`/parties/add?cat=${cat._id}`)}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
         Add Party
       </button>
 
-      {/* 3-dot menu */}
       {showMenu && (
-        <div className="overlay" onClick={() => setShowMenu(false)}>
-          <div className="sheet" onClick={e=>e.stopPropagation()}>
-            <h3 style={{ fontWeight:800, marginBottom:16 }}>{cat.name}</h3>
-            <button className="btn btn-ghost btn-full" style={{ marginBottom:10 }} onClick={() => { setShowMenu(false); onEdit(cat); }}>✏️  Edit Category</button>
-            <button className="btn btn-full" style={{ background:'var(--red-lt)', color:'var(--red)', marginBottom:10 }} onClick={() => { setShowMenu(false); onDelete({ ...cat, partyCount:parties.length }); }}>🗑️  Delete Category</button>
-            <button className="btn btn-ghost btn-full" onClick={() => setShowMenu(false)}>Cancel</button>
-          </div>
-        </div>
+        <ThreeDotMenu
+          cat={cat}
+          parties={parties.length}
+          onEdit={() => { setShowMenu(false); onEdit(cat); }}
+          onDelete={() => { setShowMenu(false); onDelete({ ...cat, partyCount:parties.length }); }}
+          onClose={() => setShowMenu(false)}
+        />
       )}
 
-      {/* Delete party confirm */}
       {confirmDel && (
         <div className="overlay" onClick={() => !deleting && setConfirmDel(null)}>
           <div className="sheet" onClick={e=>e.stopPropagation()}>
@@ -255,14 +309,15 @@ function CategoryDetailPage({ cat, onBack, onEdit, onDelete, navigate }) {
    MAIN DASHBOARD
 ═══════════════════════════════════════ */
 export default function Dashboard() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user }  = useAuth();
+  const navigate  = useNavigate();
   const [data,        setData]        = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [showCatForm, setShowCatForm] = useState(false);
   const [editCat,     setEditCat]     = useState(null);
   const [deleteCat,   setDeleteCat]   = useState(null);
   const [viewCat,     setViewCat]     = useState(null);
+  const [menuCat,     setMenuCat]     = useState(null); /* which card's 3-dot is open */
 
   const load = useCallback(async () => {
     try { const r = await dashAPI.get(); setData(r.data.data); }
@@ -272,7 +327,6 @@ export default function Dashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  /* Show category detail page */
   if (viewCat) return (
     <CategoryDetailPage
       cat={viewCat}
@@ -285,20 +339,25 @@ export default function Dashboard() {
 
   if (loading) return <div className="spinner"><div className="spin"/></div>;
 
-  const d   = data || { grouped:[], totalToGet:0, totalToGive:0, partyCount:0, recentTransactions:[] };
+  const d   = data || { grouped:[], totalToGet:0, totalToGive:0, recentTransactions:[] };
   const net = d.totalToGet - d.totalToGive;
   const recentTx = d.recentTransactions || [];
+
+  /* For net balance — show only what's relevant */
+  const netIsGet  = net > 0;
+  const netIsGive = net < 0;
+  const netColor  = netIsGet ? '#1a9e5c' : netIsGive ? '#e53935' : '#888';
 
   return (
     <div style={{ background:'#f5f7fa', minHeight:'100vh', paddingBottom:90 }}>
 
       {/* ── Header ── */}
-      <div style={{ background:'white', padding:'16px 16px 14px', borderBottom:'1px solid #eee' }}>
+      <div style={{ background:'white', padding:'14px 16px 12px', borderBottom:'1px solid #eee' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
-            <p style={{ fontSize:12, color:'#999', marginBottom:2 }}>Good day,</p>
-            <h1 style={{ fontSize:20, fontWeight:800, color:'#1a1d2e', margin:0 }}>{user?.name}</h1>
-            {user?.businessName && <p style={{ fontSize:12, color:'#888', marginTop:2 }}>{user.businessName}</p>}
+            <p style={{ fontSize:12, color:'#aaa', marginBottom:1 }}>Good day,</p>
+            <h1 style={{ fontSize:19, fontWeight:800, color:'#1a1d2e', margin:0, lineHeight:1.2 }}>{user?.name}</h1>
+            {user?.businessName && <p style={{ fontSize:12, color:'#999', marginTop:2 }}>{user.businessName}</p>}
           </div>
           <button onClick={() => navigate('/more/profile')}
             style={{ width:42, height:42, borderRadius:'50%', background:avatarColor(user?.name||'U'), border:'none', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:17, fontWeight:800, cursor:'pointer', flexShrink:0 }}>
@@ -307,87 +366,179 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div style={{ padding:'14px 16px 0' }}>
+      <div style={{ padding:'12px 16px 0' }}>
 
-        {/* ── Financial Summary Card ── */}
-        <div style={{ background:'white', borderRadius:20, padding:'20px 18px', marginBottom:16, boxShadow:'0 2px 16px rgba(0,0,0,.07)' }}>
-          <p style={{ fontSize:12, color:'#999', marginBottom:4, fontWeight:600 }}>Net Balance</p>
-          <p style={{ fontSize:36, fontWeight:800, color:net>=0?'#1a9e5c':'#e53935', lineHeight:1, marginBottom:16 }}>
-            {net>=0?'+':''}₹{fmt(net,0)}
-          </p>
-          <div style={{ height:1, background:'#f0f0f0', marginBottom:16 }}/>
-          <div style={{ display:'flex', gap:0 }}>
-            <div style={{ flex:1, paddingRight:16 }}>
-              <p style={{ fontSize:11, color:'#1a9e5c', fontWeight:700, marginBottom:4, textTransform:'uppercase', letterSpacing:.3 }}>You Get</p>
-              <p style={{ fontSize:22, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(d.totalToGet,0)}</p>
-              <p style={{ fontSize:11, color:'#aaa', marginTop:2 }}>{d.grouped.reduce((s,g)=>s+g.parties.filter(p=>p.balance>0).length,0)} parties</p>
+        {/* ── Compact Financial Summary — show only relevant side ── */}
+        <div style={{ background:'white', borderRadius:16, padding:'14px 16px', marginBottom:12, boxShadow:'0 1px 8px rgba(0,0,0,.07)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: (d.totalToGet>0 && d.totalToGive>0) ? 12 : 0 }}>
+            <div>
+              <p style={{ fontSize:11, color:'#aaa', marginBottom:3 }}>Net Balance</p>
+              <p style={{ fontSize:30, fontWeight:800, color:netColor, lineHeight:1 }}>
+                {net===0 ? '₹0' : `${netIsGet?'+':'-'}₹${fmt(Math.abs(net),0)}`}
+              </p>
             </div>
-            <div style={{ width:1, background:'#f0f0f0' }}/>
-            <div style={{ flex:1, paddingLeft:16 }}>
-              <p style={{ fontSize:11, color:'#e53935', fontWeight:700, marginBottom:4, textTransform:'uppercase', letterSpacing:.3 }}>You Give</p>
-              <p style={{ fontSize:22, fontWeight:800, color:'#e53935' }}>₹{fmt(d.totalToGive,0)}</p>
-              <p style={{ fontSize:11, color:'#aaa', marginTop:2 }}>{d.grouped.reduce((s,g)=>s+g.parties.filter(p=>p.balance<0).length,0)} parties</p>
+            <div style={{ textAlign:'right' }}>
+              {netIsGet  && <p style={{ fontSize:12, fontWeight:700, color:'#1a9e5c' }}>You will get</p>}
+              {netIsGive && <p style={{ fontSize:12, fontWeight:700, color:'#e53935' }}>You will give</p>}
+              {net===0   && <p style={{ fontSize:12, fontWeight:700, color:'#888' }}>All settled</p>}
+              <p style={{ fontSize:11, color:'#aaa', marginTop:2 }}>
+                {d.grouped.reduce((s,g)=>s+g.parties.length,0)} parties total
+              </p>
             </div>
           </div>
+
+          {/* Only show both rows when both sides exist */}
+          {d.totalToGet>0 && d.totalToGive>0 && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+              <div style={{ background:'#e6f9f0', borderRadius:10, padding:'8px 12px' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'#1a9e5c', marginBottom:2, textTransform:'uppercase' }}>You get</p>
+                <p style={{ fontSize:18, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(d.totalToGet,0)}</p>
+              </div>
+              <div style={{ background:'#fff0f0', borderRadius:10, padding:'8px 12px' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'#e53935', marginBottom:2, textTransform:'uppercase' }}>You give</p>
+                <p style={{ fontSize:18, fontWeight:800, color:'#e53935' }}>₹{fmt(d.totalToGive,0)}</p>
+              </div>
+            </div>
+          )}
+          {/* Only get */}
+          {d.totalToGet>0 && d.totalToGive===0 && (
+            <div style={{ background:'#e6f9f0', borderRadius:10, padding:'8px 12px' }}>
+              <p style={{ fontSize:10, fontWeight:700, color:'#1a9e5c', marginBottom:2, textTransform:'uppercase' }}>You will get from</p>
+              <p style={{ fontSize:16, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(d.totalToGet,0)}</p>
+            </div>
+          )}
+          {/* Only give */}
+          {d.totalToGive>0 && d.totalToGet===0 && (
+            <div style={{ background:'#fff0f0', borderRadius:10, padding:'8px 12px' }}>
+              <p style={{ fontSize:10, fontWeight:700, color:'#e53935', marginBottom:2, textTransform:'uppercase' }}>You will give to</p>
+              <p style={{ fontSize:16, fontWeight:800, color:'#e53935' }}>₹{fmt(d.totalToGive,0)}</p>
+            </div>
+          )}
         </div>
 
+        {/* ── Quick Actions ── */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:12 }}>
+          {[
+            { label:'Add Party',   icon:'👤', action:() => navigate('/parties/add'), bg:'#e8eeff', color:'#1a4fd6' },
+            { label:'All Parties', icon:'🤝', action:() => navigate('/parties'),     bg:'#e6f9f0', color:'#1a9e5c' },
+            { label:'Reports',     icon:'📊', action:() => navigate('/reports'),     bg:'#fff0f0', color:'#e53935' },
+          ].map(q => (
+            <button key={q.label} onClick={q.action}
+              style={{ background:'white', border:'none', borderRadius:14, padding:'12px 6px', display:'flex', flexDirection:'column', alignItems:'center', gap:5, cursor:'pointer', boxShadow:'0 1px 4px rgba(0,0,0,.05)' }}>
+              <div style={{ width:38, height:38, borderRadius:12, background:q.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:19 }}>{q.icon}</div>
+              <p style={{ fontSize:11, fontWeight:700, color:q.color }}>{q.label}</p>
+            </button>
+          ))}
+        </div>
 
+        {/* ── Recent Transactions ── */}
+        {recentTx.length > 0 && (
+          <div style={{ marginBottom:12 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <p style={{ fontSize:13, fontWeight:800, color:'#1a1d2e' }}>Recent Transactions</p>
+              <button onClick={() => navigate('/reports')} style={{ fontSize:12, color:'#1a4fd6', fontWeight:700, background:'none', border:'none', cursor:'pointer' }}>See all</button>
+            </div>
+            <div style={{ background:'white', borderRadius:14, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,.05)' }}>
+              {recentTx.slice(0,5).map((tx, i) => (
+                <div key={tx._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 14px', borderBottom:i<Math.min(recentTx.length,5)-1?'1px solid #f8f8f8':'none' }}>
+                  <div style={{ width:34, height:34, borderRadius:'50%', background:tx.type==='got'?'#e6f9f0':'#fff0f0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={tx.type==='got'?'#1a9e5c':'#e53935'} strokeWidth="2.5" strokeLinecap="round">
+                      {tx.type==='got'
+                        ? <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/></>
+                        : <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="19 12 12 5 5 12"/></>
+                      }
+                    </svg>
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ fontSize:13, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{tx.partyId?.name||'—'}</p>
+                    <p style={{ fontSize:11, color:'#bbb', marginTop:1 }}>{fmtDate(tx.date)}</p>
+                  </div>
+                  <p style={{ fontSize:14, fontWeight:800, color:tx.type==='got'?'#1a9e5c':'#e53935', flexShrink:0 }}>
+                    {tx.type==='got'?'+':'-'}₹{fmt(tx.amount,0)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Categories ── */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
           <p style={{ fontSize:13, fontWeight:800, color:'#1a1d2e' }}>Categories</p>
           <button onClick={() => setShowCatForm(true)}
-            style={{ background:'var(--blue-lt)', color:'var(--blue)', border:'none', borderRadius:50, padding:'5px 14px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+            style={{ background:'#e8eeff', color:'#1a4fd6', border:'none', borderRadius:50, padding:'5px 14px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
             + Add
           </button>
         </div>
 
         {d.grouped.length === 0 ? (
-          <div style={{ background:'white', borderRadius:16, padding:'32px 24px', textAlign:'center', boxShadow:'0 1px 6px rgba(0,0,0,.05)', marginBottom:16 }}>
-            <div style={{ fontSize:44, marginBottom:10 }}>📂</div>
-            <p style={{ fontWeight:700, fontSize:16, color:'#333', marginBottom:6 }}>No categories yet</p>
-            <p style={{ fontSize:13, color:'#999', marginBottom:16 }}>Organise your parties into categories like Customers, Suppliers</p>
+          <div style={{ background:'white', borderRadius:16, padding:'28px 24px', textAlign:'center', boxShadow:'0 1px 4px rgba(0,0,0,.05)', marginBottom:16 }}>
+            <div style={{ fontSize:40, marginBottom:10 }}>📂</div>
+            <p style={{ fontWeight:700, fontSize:15, color:'#333', marginBottom:6 }}>No categories yet</p>
+            <p style={{ fontSize:12, color:'#999', marginBottom:14 }}>Organise parties into Customers, Suppliers etc.</p>
             <button className="btn btn-primary" onClick={() => setShowCatForm(true)}>+ Add Category</button>
           </div>
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
-            {d.grouped.map(({ category:cat, parties, toGet, toGive }) => (
-              <div key={cat._id} onClick={() => setViewCat(cat)}
-                style={{ background:'white', borderRadius:16, overflow:'hidden', boxShadow:'0 1px 6px rgba(0,0,0,.05)', cursor:'pointer', position:'relative' }}>
-                {/* Color accent top strip */}
-                <div style={{ height:3, background:cat.color }}/>
-                <div style={{ padding:'12px 14px' }}>
-                  {/* Avatar + menu */}
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                    <div style={{ width:34, height:34, borderRadius:10, background:cat.color+'20', display:'flex', alignItems:'center', justifyContent:'center', color:cat.color, fontWeight:800, fontSize:15 }}>
-                      {cat.name[0].toUpperCase()}
+            {d.grouped.map(({ category:cat, parties, toGet, toGive }) => {
+              const catNet = toGet - toGive;
+              return (
+                <div key={cat._id} onClick={() => setViewCat(cat)}
+                  style={{ background:'white', borderRadius:16, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,.06)', cursor:'pointer', position:'relative' }}>
+                  {/* Top color bar */}
+                  <div style={{ height:3, background:cat.color }}/>
+                  <div style={{ padding:'11px 12px' }}>
+                    {/* Avatar row + 3-dot */}
+                    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:6 }}>
+                      <div style={{ width:34, height:34, borderRadius:10, background:cat.color+'18', display:'flex', alignItems:'center', justifyContent:'center', color:cat.color, fontWeight:800, fontSize:15 }}>
+                        {cat.name[0]}
+                      </div>
+                      {/* 3-dot button — stops propagation so card tap doesn't fire */}
+                      <button
+                        onClick={e => { e.stopPropagation(); setMenuCat({ cat, parties:parties.length }); }}
+                        style={{ width:28, height:28, borderRadius:8, background:'#f5f7fa', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#888">
+                          <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+                        </svg>
+                      </button>
                     </div>
-                    {/* 3-dot menu */}
-                    <div onClick={e=>e.stopPropagation()} style={{ display:'flex', gap:4 }}>
-                      <button onClick={() => setEditCat(cat)}
-                        style={{ width:26, height:26, borderRadius:8, background:'#f5f5f5', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>✏️</button>
-                      <button onClick={() => setDeleteCat({ ...cat, partyCount:parties.length })}
-                        style={{ width:26, height:26, borderRadius:8, background:'#ffebee', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>🗑️</button>
-                    </div>
+
+                    {/* Name — lowercase (not ALL CAPS) */}
+                    <p style={{ fontSize:13, fontWeight:800, color:'#1a1d2e', marginBottom:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cat.name}</p>
+                    <p style={{ fontSize:11, color:'#aaa', marginBottom:8 }}>{parties.length} {parties.length===1?'party':'parties'}</p>
+
+                    {/* Balance — show only relevant side */}
+                    {toGet===0 && toGive===0 && (
+                      <p style={{ fontSize:11, color:'#aaa' }}>All settled ✓</p>
+                    )}
+                    {toGet>0 && toGive===0 && (
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <p style={{ fontSize:10, color:'#1a9e5c', fontWeight:600 }}>Get</p>
+                        <p style={{ fontSize:12, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(toGet,0)}</p>
+                      </div>
+                    )}
+                    {toGive>0 && toGet===0 && (
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <p style={{ fontSize:10, color:'#e53935', fontWeight:600 }}>Give</p>
+                        <p style={{ fontSize:12, fontWeight:800, color:'#e53935' }}>₹{fmt(toGive,0)}</p>
+                      </div>
+                    )}
+                    {toGet>0 && toGive>0 && (
+                      <>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:2 }}>
+                          <p style={{ fontSize:10, color:'#1a9e5c', fontWeight:600 }}>Get</p>
+                          <p style={{ fontSize:12, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(toGet,0)}</p>
+                        </div>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                          <p style={{ fontSize:10, color:'#e53935', fontWeight:600 }}>Give</p>
+                          <p style={{ fontSize:12, fontWeight:800, color:'#e53935' }}>₹{fmt(toGive,0)}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <p style={{ fontSize:14, fontWeight:800, color:'#1a1d2e', marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cat.name}</p>
-                  <p style={{ fontSize:11, color:'#999', marginBottom:10 }}>{parties.length} {parties.length===1?'party':'parties'}</p>
-                  {toGet > 0 && (
-                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
-                      <p style={{ fontSize:10, color:'#1a9e5c', fontWeight:600 }}>Get</p>
-                      <p style={{ fontSize:11, fontWeight:800, color:'#1a9e5c' }}>₹{fmt(toGet,0)}</p>
-                    </div>
-                  )}
-                  {toGive > 0 && (
-                    <div style={{ display:'flex', justifyContent:'space-between' }}>
-                      <p style={{ fontSize:10, color:'#e53935', fontWeight:600 }}>Give</p>
-                      <p style={{ fontSize:11, fontWeight:800, color:'#e53935' }}>₹{fmt(toGive,0)}</p>
-                    </div>
-                  )}
-                  {toGet===0 && toGive===0 && <p style={{ fontSize:11, color:'#aaa' }}>All settled ✅</p>}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -406,6 +557,17 @@ export default function Dashboard() {
           otherCategories={d.grouped.map(g=>g.category).filter(c=>c._id!==deleteCat._id)}
           onClose={() => setDeleteCat(null)}
           onDone={() => { setDeleteCat(null); load(); }}
+        />
+      )}
+
+      {/* Category 3-dot menu */}
+      {menuCat && (
+        <ThreeDotMenu
+          cat={menuCat.cat}
+          parties={menuCat.parties}
+          onEdit={() => { setMenuCat(null); setEditCat(menuCat.cat); }}
+          onDelete={() => { setMenuCat(null); setDeleteCat({ ...menuCat.cat, partyCount:menuCat.parties }); }}
+          onClose={() => setMenuCat(null)}
         />
       )}
     </div>
