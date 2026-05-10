@@ -5,4 +5,5 @@ r.use(protect);
 r.get('/',        c.getTransactions);
 r.post('/',       c.addTransaction);
 r.delete('/:id',  c.deleteTransaction);
+r.put('/:id',      c.updateTransaction);
 module.exports = r;
