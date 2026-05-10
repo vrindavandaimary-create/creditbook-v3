@@ -98,17 +98,19 @@ const updateTransaction = async (req, res) => {
     const oldAmount = tx.amount;
     const oldType   = tx.type;
 
-    /* Reverse old effect on balance */
-    const oldDelta = oldType === 'gave' ? -oldAmount : +oldAmount;
-    /* Apply new effect */
-    const newN     = Number(amount) || oldAmount;
-    const newType  = type || oldType;
+    const newN    = Number(amount) || oldAmount;
+    const newType = type || oldType;
     if (newN > 1000000000)
       return res.status(400).json({ success:false, message:'Amount cannot exceed ₹1,00,00,00,000.' });
-    const newDelta = newType === 'gave' ? -newN : +newN;
 
-    /* Atomic balance correction */
+    /* Balance direction matches addTransaction exactly:
+       gave = party owes us more  → balance +n
+       got  = party paid us       → balance -n
+       To update: reverse old effect, apply new effect */
+    const oldDelta = oldType === 'gave' ? +oldAmount : -oldAmount;
+    const newDelta = newType === 'gave' ? +newN      : -newN;
     const balanceDiff = newDelta - oldDelta;
+
     await Party.findByIdAndUpdate(party._id, { $inc: { balance: balanceDiff } });
 
     /* Update transaction */
