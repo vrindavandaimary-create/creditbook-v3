@@ -299,9 +299,10 @@ export default function PartyDetail() {
         <div style={{ width:40, height:40, borderRadius:'50%', background:avatarColor(party.name), display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:18, flexShrink:0 }}>
           {avatarLetter(party.name)}
         </div>
-        <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ flex:1, minWidth:0, cursor:'pointer' }}
+          onClick={()=>{ setShowEdit(true); setEditForm({name:party.name, categoryId:party.categoryId?._id||'', phone:party.phone||'', address:party.address||'', notes:party.notes||''}); }}>
           <h2 style={{ fontSize:17, fontWeight:800, margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{party.name}</h2>
-          <p style={{ fontSize:11, color:'#aaa', marginTop:1 }}>View Profile</p>
+          <p style={{ fontSize:11, color:'#1a4fd6', marginTop:1, fontWeight:600 }}>View Profile ›</p>
         </div>
         <button onClick={()=>{ setShowMenu(true); setEditForm({name:party.name, categoryId:party.categoryId?._id||'', phone:party.phone||'', address:party.address||'', notes:party.notes||''}); }}
           style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
