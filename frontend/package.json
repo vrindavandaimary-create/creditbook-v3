@@ -3,7 +3,7 @@
   "version": "3.0.0",
   "private": true,
   "engines": {
-    "node": "24.x"
+    "node": "18.x"
   },
   "dependencies": {
     "ajv": "^8.12.0",
