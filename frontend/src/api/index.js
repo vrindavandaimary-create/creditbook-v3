@@ -27,8 +27,9 @@ export const partyAPI = {
 
 export const txAPI = {
   getAll:  (params) => client.get('/api/transactions', { params }),
-  add:     d        => client.post('/api/transactions', d),
-  delete:  id       => client.delete(`/api/transactions/${id}`),
+  add:     d         => client.post('/api/transactions', d),
+  update:  (id, d)   => client.put(`/api/transactions/${id}`, d),
+  delete:  id        => client.delete(`/api/transactions/${id}`),
 };
 
 export const billAPI = {
