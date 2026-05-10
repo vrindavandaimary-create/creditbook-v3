@@ -11,8 +11,8 @@ const addTransaction = async (req, res) => {
     const n = Number(amount);
     if (isNaN(n) || n <= 0)
       return res.status(400).json({ success: false, message: 'Amount must be a positive number.' });
-    if (n > 10000000)
-      return res.status(400).json({ success: false, message: 'Amount cannot exceed ₹1,00,00,000.' });
+    if (n > 1000000000)
+      return res.status(400).json({ success: false, message: 'Amount cannot exceed ₹1,00,00,00,000.' });
 
     const existing = await Party.findOne({ _id: partyId, userId: req.user._id, isActive: true });
     if (!existing) return res.status(404).json({ success: false, message: 'Party not found.' });
@@ -82,4 +82,50 @@ const deleteTransaction = async (req, res) => {
   } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
-module.exports = { addTransaction, getTransactions, deleteTransaction };
+
+/* ── PUT /api/transactions/:id — edit amount, type, note, date ── */
+const updateTransaction = async (req, res) => {
+  try {
+    const { amount, type, note, date } = req.body;
+    const tx = await Transaction.findById(req.params.id).populate('partyId');
+    if (!tx) return res.status(404).json({ success:false, message:'Transaction not found.' });
+
+    /* Verify ownership via party */
+    const party = await Party.findOne({ _id: tx.partyId._id, userId: req.user._id });
+    if (!party) return res.status(403).json({ success:false, message:'Not authorised.' });
+
+    const oldAmount = tx.amount;
+    const oldType   = tx.type;
+
+    /* Reverse old effect on balance */
+    const oldDelta = oldType === 'gave' ? -oldAmount : +oldAmount;
+    /* Apply new effect */
+    const newN     = Number(amount) || oldAmount;
+    const newType  = type || oldType;
+    if (newN > 1000000000)
+      return res.status(400).json({ success:false, message:'Amount cannot exceed ₹1,00,00,00,000.' });
+    const newDelta = newType === 'gave' ? -newN : +newN;
+
+    /* Atomic balance correction */
+    const balanceDiff = newDelta - oldDelta;
+    await Party.findByIdAndUpdate(party._id, { $inc: { balance: balanceDiff } });
+
+    /* Update transaction */
+    tx.amount = newN;
+    tx.type   = newType;
+    if (note !== undefined) tx.note = note;
+    if (date) {
+      tx.date = date.includes('T') ? new Date(date) : (() => {
+        const now = new Date();
+        const [y,m,d2] = date.split('-').map(Number);
+        return new Date(y, m-1, d2, now.getHours(), now.getMinutes(), now.getSeconds());
+      })();
+    }
+    await tx.save();
+
+    const updatedParty = await Party.findById(party._id);
+    res.json({ success:true, data:{ transaction:tx, party:updatedParty } });
+  } catch(e) { res.status(500).json({ success:false, message:e.message }); }
+};
+
+module.exports = { addTransaction, getTransactions, deleteTransaction, updateTransaction };
