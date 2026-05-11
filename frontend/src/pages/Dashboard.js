@@ -107,7 +107,7 @@ function ThreeDotMenu({ cat, parties, onEdit, onDelete, onClose }) {
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
-          <div style={{ width:10, height:10, borderRadius:'50%', background:cat.color, flexShrink:0 }}/>
+
           <div>
             <p style={{ fontWeight:800, fontSize:16 }}>{cat.name}</p>
             <p style={{ fontSize:12, color:'#999' }}>{parties} {parties===1?'party':'parties'}</p>
@@ -177,7 +177,6 @@ function CategoryDetailPage({ cat, onBack, onEdit, onDelete, navigate }) {
         <div style={{ display:'flex', alignItems:'center', gap:12, height:56 }}>
           <button onClick={onBack}
             style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, color:'#555', cursor:'pointer', flexShrink:0 }}>←</button>
-          <div style={{ width:10, height:10, borderRadius:'50%', background:cat.color, flexShrink:0 }}/>
           <h2 style={{ flex:1, fontSize:17, fontWeight:800, margin:0 }}>{cat.name}</h2>
           <button onClick={() => setShowMenu(true)}
             style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
@@ -380,8 +379,6 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-
-        
 
         {/* ── Categories ── */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
