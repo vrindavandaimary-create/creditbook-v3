@@ -11,8 +11,8 @@ const addTransaction = async (req, res) => {
     const n = Number(amount);
     if (isNaN(n) || n <= 0)
       return res.status(400).json({ success: false, message: 'Amount must be a positive number.' });
-    if (n > 1000000000)
-      return res.status(400).json({ success: false, message: 'Amount cannot exceed ₹1,00,00,00,000.' });
+    if (n > 1000000)
+      return res.status(400).json({ success: false, message: 'Amount cannot exceed ₹1,00,000.' });
 
     const existing = await Party.findOne({ _id: partyId, userId: req.user._id, isActive: true });
     if (!existing) return res.status(404).json({ success: false, message: 'Party not found.' });
@@ -101,7 +101,7 @@ const updateTransaction = async (req, res) => {
     const newN    = Number(amount) || oldAmount;
     const newType = type || oldType;
     if (newN > 1000000000)
-      return res.status(400).json({ success:false, message:'Amount cannot exceed ₹1,00,00,00,000.' });
+      return res.status(400).json({ success:false, message:'Amount cannot exceed ₹10,00,00,000.' });
 
     /* Balance direction matches addTransaction exactly:
        gave = party owes us more  → balance +n
