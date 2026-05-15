@@ -1,5 +1,15 @@
+/**
+ * AuthContext.js  (REPLACE: frontend/src/context/AuthContext.js)
+ *
+ * Only change from original:
+ *   logout() also calls clearAllCache() to wipe the IndexedDB cache
+ *   so a different user on the same device never sees stale data.
+ *   Every other line is identical to the original.
+ */
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../api';
+import { clearAllCache } from '../utils/offlineDB';
 
 const Ctx = createContext(null);
 export const useAuth = () => useContext(Ctx);
@@ -32,10 +42,13 @@ export function AuthProvider({ children }) {
     return r.data;
   };
 
+  // UPDATED: clears IndexedDB cache on logout
   const logout = () => {
-    setToken(null); setUser(null);
+    setToken(null);
+    setUser(null);
     localStorage.removeItem('cb3_token');
     localStorage.removeItem('cb3_user');
+    clearAllCache().catch(() => {}); // silent — don't block the logout
   };
 
   const updateUser = (u) => {
