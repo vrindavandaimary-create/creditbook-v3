@@ -13,14 +13,311 @@ const fmtDay  = d => {
   if (date >= yest)  return 'Yesterday';
   return date.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
 };
-const dayKey = d => new Date(d).toDateString();
+const dayKey  = d => new Date(d).toDateString();
+const fmtFull = d => new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
 
-/* ── Balance status logic ── */
+/* ── Balance status ── */
 const balanceStatus = (balance) => {
   if (balance > 0) return { label:'Due',     color:'#e53935', bg:'#fff0f0' };
   if (balance < 0) return { label:'Advance', color:'#1a9e5c', bg:'#e6f9f0' };
   return               { label:'Settled',  color:'#888',    bg:'#f5f5f5' };
 };
+
+/* ══════════════════════════════════════
+   PDF REPORT GENERATOR  (no library)
+══════════════════════════════════════ */
+const generateReportPDF = ({ party, txs, from, to, user }) => {
+  const filtered = txs.filter(tx => {
+    const d = new Date(tx.date);
+    if (from && d < new Date(from))  return false;
+    if (to   && d > new Date(new Date(to).setHours(23,59,59,999))) return false;
+    return true;
+  }).sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  const totalGave = filtered.filter(t => t.type === 'gave').reduce((s,t) => s + t.amount, 0);
+  const totalGot  = filtered.filter(t => t.type === 'got' ).reduce((s,t) => s + t.amount, 0);
+  const balance   = filtered.length ? filtered[filtered.length-1].balanceAfter ?? (party.balance) : party.balance;
+  const bs        = balanceStatus(balance);
+  const dateRange = from && to
+    ? `${fmtFull(from)} – ${fmtFull(to)}`
+    : from ? `From ${fmtFull(from)}`
+    : to   ? `Until ${fmtFull(to)}`
+    : 'All Transactions';
+
+  const rows = filtered.map((tx, i) => {
+    const isGot  = tx.type === 'got';
+    const bgColor = isGot ? '#f0fff4' : '#fff5f5';
+    return `
+    <tr style="background:${i%2===0?'#fff':bgColor}">
+      <td>${fmtFull(tx.date)}<br/><small style="color:#aaa">${fmtTime(tx.date)}</small></td>
+      <td>${tx.note || '—'}</td>
+      <td style="text-align:right;color:#e53935;font-weight:700">${isGot  ? '' : '₹' + Number(tx.amount).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+      <td style="text-align:right;color:#1a9e5c;font-weight:700">${isGot  ? '₹' + Number(tx.amount).toLocaleString('en-IN',{minimumFractionDigits:2}) : ''}</td>
+      <td style="text-align:right;font-weight:700;color:${tx.balanceAfter===0?'#1a9e5c':tx.balanceAfter>0?'#e53935':'#1a9e5c'}">
+        ${tx.balanceAfter === 0 ? 'Settled' : '₹' + Math.abs(tx.balanceAfter).toLocaleString('en-IN',{minimumFractionDigits:2}) + (tx.balanceAfter > 0 ? ' Due' : ' Adv')}
+      </td>
+    </tr>`;
+  }).join('');
+
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8"/>
+    <title>Report – ${party.name}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0;}
+      body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1d2e;background:#fff;padding:28px 32px;}
+      .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:3px solid #1a4fd6;margin-bottom:22px;}
+      .biz h1{font-size:20px;font-weight:800;color:#1a4fd6;}
+      .biz p{font-size:12px;color:#888;margin-top:4px;}
+      .meta{text-align:right;}
+      .meta h2{font-size:15px;font-weight:800;color:#333;}
+      .meta p{font-size:12px;color:#888;margin-top:3px;}
+      .party-card{background:#f0f4ff;border-radius:12px;padding:16px 20px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;}
+      .party-card h3{font-size:18px;font-weight:800;}
+      .party-card p{font-size:12px;color:#666;margin-top:3px;}
+      .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+      .sum{border-radius:10px;padding:14px 16px;border-left:4px solid #ddd;}
+      .sum.gave{background:#fff5f5;border-color:#e53935;}
+      .sum.got{background:#f0fff4;border-color:#1a9e5c;}
+      .sum.bal{background:#f0f4ff;border-color:#1a4fd6;}
+      .sum label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#888;}
+      .sum span{display:block;font-size:20px;font-weight:800;margin-top:4px;}
+      .sum.gave span{color:#e53935;}
+      .sum.got  span{color:#1a9e5c;}
+      table{width:100%;border-collapse:collapse;font-size:13px;}
+      thead tr{background:#1a4fd6;color:white;}
+      th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+      td{padding:10px 12px;border-bottom:1px solid #f0f0f0;}
+      tfoot tr{background:#f8f8f8;font-weight:800;}
+      .footer{text-align:center;font-size:11px;color:#bbb;margin-top:28px;padding-top:14px;border-top:1px solid #eee;}
+      @media print{body{padding:14px;} @page{margin:12mm;size:A4;}}
+    </style>
+  </head><body>
+    <div class="header">
+      <div class="biz">
+        <h1>${user?.businessName || 'My Business'}</h1>
+        <p>${user?.phone || ''}</p>
+      </div>
+      <div class="meta">
+        <h2>Transaction Report</h2>
+        <p>${dateRange}</p>
+        <p>Generated: ${new Date().toLocaleString('en-IN')}</p>
+      </div>
+    </div>
+
+    <div class="party-card">
+      <div>
+        <h3>${party.name}</h3>
+        ${party.phone   ? `<p>📞 ${party.phone}</p>`   : ''}
+        ${party.address ? `<p>📍 ${party.address}</p>` : ''}
+      </div>
+      <div style="text-align:right">
+        <span style="background:${bs.bg};color:${bs.color};padding:4px 14px;border-radius:50px;font-size:12px;font-weight:700">${bs.label}</span>
+        <p style="font-size:20px;font-weight:800;margin-top:6px;color:${bs.color}">
+          ${balance === 0 ? 'Settled ✓' : '₹' + Math.abs(balance).toLocaleString('en-IN',{minimumFractionDigits:2})}
+        </p>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="sum gave">
+        <label>You Gave</label>
+        <span>₹${totalGave.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+      </div>
+      <div class="sum got">
+        <label>You Got</label>
+        <span>₹${totalGot.toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+      </div>
+      <div class="sum bal">
+        <label>Net Balance</label>
+        <span style="color:${bs.color}">${balance === 0 ? 'Settled' : (balance > 0 ? '+' : '-') + '₹' + Math.abs(balance).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+      </div>
+    </div>
+
+    ${filtered.length === 0
+      ? `<div style="text-align:center;padding:40px;color:#aaa;font-size:15px">No transactions in this period.</div>`
+      : `<table>
+          <thead><tr>
+            <th>Date</th><th>Description</th>
+            <th style="text-align:right">You Gave</th>
+            <th style="text-align:right">You Got</th>
+            <th style="text-align:right">Balance</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr>
+            <td colspan="2">Total (${filtered.length} entries)</td>
+            <td style="text-align:right;color:#e53935">₹${totalGave.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+            <td style="text-align:right;color:#1a9e5c">₹${totalGot.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+            <td></td>
+          </tr></tfoot>
+        </table>`}
+
+    <div class="footer">Generated by CreditBook &nbsp;•&nbsp; ${new Date().toLocaleString('en-IN')}</div>
+    <script>window.onload = () => { window.print(); }</script>
+  </body></html>`);
+  w.document.close();
+};
+
+/* ══════════════════════════════════════
+   REPORT SHEET  (replaces Create Bill)
+══════════════════════════════════════ */
+function ReportSheet({ party, txs, onClose, user }) {
+  const [from,    setFrom]    = useState('');
+  const [to,      setTo]      = useState('');
+  const [preview, setPreview] = useState(false);
+
+  /* Compute preview stats */
+  const filtered = txs.filter(tx => {
+    const d = new Date(tx.date);
+    if (from && d < new Date(from)) return false;
+    if (to   && d > new Date(new Date(to).setHours(23,59,59,999))) return false;
+    return true;
+  });
+  const totalGave = filtered.filter(t => t.type === 'gave').reduce((s,t) => s + t.amount, 0);
+  const totalGot  = filtered.filter(t => t.type === 'got' ).reduce((s,t) => s + t.amount, 0);
+  const lastBal   = filtered.length ? (filtered[filtered.length-1].balanceAfter ?? party.balance) : party.balance;
+  const bs        = balanceStatus(lastBal);
+
+  const download = () => generateReportPDF({ party, txs, from, to, user });
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e => e.stopPropagation()}
+        style={{ maxHeight:'88vh', overflowY:'auto', padding:0 }}>
+
+        {/* Sheet header — same structure as other sheets */}
+        <div style={{ padding:'18px 18px 14px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <h3 style={{ fontWeight:800, fontSize:18, margin:0 }}>📄 Report</h3>
+            <p style={{ fontSize:12, color:'var(--text3)', marginTop:3 }}>{party.name}</p>
+          </div>
+          <button onClick={onClose}
+            style={{ width:30, height:30, borderRadius:'50%', background:'var(--bg)', border:'none', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#555' }}>×</button>
+        </div>
+
+        <div style={{ padding:'16px 18px' }}>
+
+          {/* Date range */}
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:10 }}>Date Range</p>
+          <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+            <div className="field" style={{ flex:1, marginBottom:0 }}>
+              <label>From</label>
+              <input type="date" value={from} onChange={e => setFrom(e.target.value)} max={todayStr()} />
+            </div>
+            <div className="field" style={{ flex:1, marginBottom:0 }}>
+              <label>To</label>
+              <input type="date" value={to} onChange={e => setTo(e.target.value)} min={from} max={todayStr()} />
+            </div>
+          </div>
+
+          {/* Quick range chips */}
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:20 }}>
+            {[
+              { label:'This Month', fn: () => {
+                const n = new Date(); const y = n.getFullYear(), m = n.getMonth();
+                setFrom(`${y}-${String(m+1).padStart(2,'0')}-01`); setTo(todayStr());
+              }},
+              { label:'Last Month', fn: () => {
+                const n = new Date(); const y = n.getFullYear(), m = n.getMonth();
+                const lm = m === 0 ? 11 : m-1; const ly = m === 0 ? y-1 : y;
+                const last = new Date(y, m, 0).getDate();
+                setFrom(`${ly}-${String(lm+1).padStart(2,'0')}-01`);
+                setTo(`${ly}-${String(lm+1).padStart(2,'0')}-${last}`);
+              }},
+              { label:'Last 3M', fn: () => {
+                const d = new Date(); d.setMonth(d.getMonth()-3);
+                setFrom(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+                setTo(todayStr());
+              }},
+              { label:'All Time', fn: () => { setFrom(''); setTo(''); }},
+            ].map(c => (
+              <button key={c.label} onClick={c.fn}
+                style={{ padding:'6px 14px', borderRadius:50, fontSize:12, fontWeight:700, fontFamily:'inherit', cursor:'pointer',
+                  border:'1.5px solid var(--border)', background:'white', color:'var(--text2)' }}>
+                {c.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Preview card */}
+          {(preview || filtered.length > 0) && (
+            <div style={{ background:'var(--bg)', borderRadius:14, padding:'14px 16px', marginBottom:18 }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', marginBottom:12 }}>
+                Preview &nbsp;·&nbsp; {filtered.length} entries
+              </p>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                {[
+                  { label:'You Gave', val: fmt(totalGave,2), color:'var(--red)' },
+                  { label:'You Got',  val: fmt(totalGot,2),  color:'var(--green)' },
+                  { label:'Balance',  val: lastBal===0 ? 'Settled' : `₹${fmt(Math.abs(lastBal),0)}`, color:bs.color },
+                ].map(c => (
+                  <div key={c.label} style={{ background:'white', borderRadius:10, padding:'10px 12px', textAlign:'center', boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
+                    <p style={{ fontSize:9, color:'var(--text3)', fontWeight:700, textTransform:'uppercase', marginBottom:4 }}>{c.label}</p>
+                    <p style={{ fontSize:13, fontWeight:800, color:c.color }}>
+                      {c.label !== 'Balance' ? `₹${c.val}` : c.val}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Balance status badge */}
+              <div style={{ display:'flex', justifyContent:'center', marginTop:12 }}>
+                <span style={{ background:bs.bg, color:bs.color, padding:'4px 16px', borderRadius:50, fontSize:12, fontWeight:700 }}>
+                  {lastBal === 0 ? 'Settled ✓' : `₹${fmt(Math.abs(lastBal),0)} ${bs.label}`}
+                </span>
+              </div>
+
+              {/* Recent entries preview — last 3 */}
+              {filtered.length > 0 && (
+                <div style={{ marginTop:14, background:'white', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 80px', padding:'7px 12px', background:'var(--blue-lt)', borderBottom:'1px solid var(--border)' }}>
+                    {['Date','You Gave','You Got'].map(h => (
+                      <p key={h} style={{ fontSize:9, fontWeight:700, color:'var(--blue)', textTransform:'uppercase' }}>{h}</p>
+                    ))}
+                  </div>
+                  {[...filtered].reverse().slice(0,4).map((tx,i) => (
+                    <div key={tx._id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 80px', padding:'9px 12px', borderBottom: i<3?'1px solid var(--border)':'none', background: i%2===0?'white':'var(--bg)' }}>
+                      <div>
+                        <p style={{ fontSize:12, fontWeight:600 }}>{fmtFull(tx.date)}</p>
+                        {tx.note && <p style={{ fontSize:10, color:'var(--text3)' }}>{tx.note}</p>}
+                      </div>
+                      <p style={{ fontSize:13, fontWeight:700, color:'var(--red)', textAlign:'right' }}>
+                        {tx.type==='gave' ? `₹${fmt(tx.amount,0)}` : ''}
+                      </p>
+                      <p style={{ fontSize:13, fontWeight:700, color:'var(--green)', textAlign:'right' }}>
+                        {tx.type==='got' ? `₹${fmt(tx.amount,0)}` : ''}
+                      </p>
+                    </div>
+                  ))}
+                  {filtered.length > 4 && (
+                    <p style={{ textAlign:'center', fontSize:11, color:'var(--text3)', padding:'8px', fontWeight:600 }}>
+                      + {filtered.length - 4} more entries in the PDF
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action buttons — same size/layout as other sheet buttons */}
+          <button className="btn btn-primary btn-full" style={{ marginBottom:10 }}
+            onClick={() => { setPreview(true); }}>
+            📊 Generate Report
+          </button>
+
+          <button className="btn btn-full" style={{ marginBottom:10, background:'var(--green-lt)', color:'var(--green-dk)' }}
+            onClick={download}>
+            ⬇️ Download PDF
+          </button>
+
+          <button className="btn btn-ghost btn-full" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ─── Numpad ─── */
 function Numpad({ value, onChange }) {
@@ -56,14 +353,14 @@ function Numpad({ value, onChange }) {
 }
 
 /* ─── Add Transaction Screen ─── */
-function AddTxScreen({ party, type, onClose, onSaved, navigate }) {
+function AddTxScreen({ party, type, onClose, onSaved }) {
   const [amount, setAmount] = useState('');
   const [note,   setNote]   = useState('');
   const [date,   setDate]   = useState(todayStr());
   const [saving, setSaving] = useState(false);
   const dateRef  = useRef(null);
-  const isGot    = type==='got';
-  const accent   = isGot?'#1a9e5c':'#e53935';
+  const isGot    = type === 'got';
+  const accent   = isGot ? '#1a9e5c' : '#e53935';
   const fmtDD    = d => new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
   const bs       = balanceStatus(party.balance);
 
@@ -111,7 +408,7 @@ function AddTxScreen({ party, type, onClose, onSaved, navigate }) {
           style={{ width:'100%', maxWidth:400, background:'#f5f5f5', borderRadius:14, padding:'13px 16px', display:'flex', alignItems:'center', gap:12, cursor:'pointer', position:'relative' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           <div style={{ flex:1 }}>
-            <p style={{ fontSize:11, color:'#aaa', marginBottom:2 }}>Bill Date</p>
+            <p style={{ fontSize:11, color:'#aaa', marginBottom:2 }}>Date</p>
             <p style={{ fontSize:15, fontWeight:600, color:'#333' }}>{fmtDD(date)}</p>
           </div>
           <input ref={dateRef} type="date" value={date} max={todayStr()} onChange={e=>setDate(e.target.value)}
@@ -119,14 +416,10 @@ function AddTxScreen({ party, type, onClose, onSaved, navigate }) {
         </div>
       </div>
 
+      {/* Bottom — same layout as before, "Create Bill" button REMOVED */}
       <div style={{ padding:'12px 16px', display:'flex', gap:10, borderTop:'1px solid #eee', background:'white' }}>
-        <button onClick={()=>{ onClose(); navigate(`/more/billing?party=${party._id}`); }}
-          style={{ flex:1, padding:'14px', borderRadius:50, border:'1.5px solid #ddd', background:'white', fontSize:13, fontWeight:700, color:'#555', fontFamily:'inherit', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          Create Bill
-        </button>
         <button onClick={confirm} disabled={saving||!amount}
-          style={{ flex:2, padding:'14px', borderRadius:50, border:'none', background:!amount?'#e0e0e0':accent, color:!amount?'#aaa':'white', fontSize:16, fontWeight:800, fontFamily:'inherit', cursor:!amount?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+          style={{ flex:1, padding:'14px', borderRadius:50, border:'none', background:!amount?'#e0e0e0':accent, color:!amount?'#aaa':'white', fontSize:16, fontWeight:800, fontFamily:'inherit', cursor:!amount?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
           {!saving&&<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
           {saving?'Saving…':'Confirm'}
         </button>
@@ -163,14 +456,12 @@ function EditTxSheet({ tx, onClose, onSaved }) {
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{ maxHeight:'92vh', overflowY:'auto', padding:0, borderRadius:'20px 20px 0 0' }}>
-        {/* Header */}
         <div style={{ padding:'16px 18px', borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <h3 style={{ fontWeight:800, fontSize:17, margin:0 }}>Edit Entry</h3>
           <button onClick={onClose} style={{ width:30, height:30, borderRadius:'50%', background:'#f5f5f5', border:'none', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#555' }}>×</button>
         </div>
 
         <div style={{ padding:'16px 18px' }}>
-          {/* Type toggle */}
           <p style={{ fontSize:11, fontWeight:700, color:'#aaa', textTransform:'uppercase', marginBottom:8 }}>Type</p>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
             {[{v:'got',label:'Received',color:'#1a9e5c',bg:'#e8f5e9'},{v:'gave',label:'Given',color:'#e53935',bg:'#ffebee'}].map(o=>(
@@ -181,7 +472,6 @@ function EditTxSheet({ tx, onClose, onSaved }) {
             ))}
           </div>
 
-          {/* Amount */}
           <p style={{ fontSize:11, fontWeight:700, color:'#aaa', textTransform:'uppercase', marginBottom:8 }}>Amount</p>
           <div style={{ background:'#f5f7fa', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
             <p style={{ fontSize:20, fontWeight:700, color:'#aaa' }}>₹</p>
@@ -189,14 +479,12 @@ function EditTxSheet({ tx, onClose, onSaved }) {
               style={{ flex:1, fontSize:26, fontWeight:800, color:'#1a1d2e', background:'none', border:'none', outline:'none', fontFamily:'inherit' }}/>
           </div>
 
-          {/* Note */}
           <p style={{ fontSize:11, fontWeight:700, color:'#aaa', textTransform:'uppercase', marginBottom:8 }}>Note</p>
           <div style={{ background:'#f5f7fa', borderRadius:12, padding:'12px 14px', marginBottom:16 }}>
             <input placeholder="Add a note (optional)" value={note} onChange={e=>setNote(e.target.value)}
               style={{ width:'100%', fontSize:15, background:'none', border:'none', outline:'none', color:'#333', fontFamily:'inherit' }}/>
           </div>
 
-          {/* Date */}
           <p style={{ fontSize:11, fontWeight:700, color:'#aaa', textTransform:'uppercase', marginBottom:8 }}>Date</p>
           <div onClick={()=>dateRef.current?.showPicker?.()??dateRef.current?.click()}
             style={{ background:'#f5f7fa', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer', marginBottom:20, position:'relative' }}>
@@ -206,7 +494,6 @@ function EditTxSheet({ tx, onClose, onSaved }) {
               style={{ position:'absolute', opacity:0, width:'100%', height:'100%', top:0, left:0, cursor:'pointer' }}/>
           </div>
 
-          {/* Save */}
           <button onClick={save} disabled={saving||!amount}
             style={{ width:'100%', padding:'15px', borderRadius:50, border:'none', background:!amount?'#e0e0e0':'#1a4fd6', color:!amount?'#aaa':'white', fontSize:16, fontWeight:800, fontFamily:'inherit', cursor:!amount?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
             {!saving&&<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
@@ -233,15 +520,17 @@ export default function PartyDetail() {
   const [showMenu,   setShowMenu]   = useState(false);
   const [showEdit,   setShowEdit]   = useState(false);
   const [showDel,    setShowDel]    = useState(false);
+  const [showReport, setShowReport] = useState(false);   // ← NEW: replaces billing
   const [editForm,   setEditForm]   = useState({});
   const [saving,     setSaving]     = useState(false);
   const [deleting,   setDeleting]   = useState(false);
 
-  /* Transaction actions */
-  const [txMenu,     setTxMenu]     = useState(null); /* tx object for 3-dot menu */
-  const [editTx,     setEditTx]     = useState(null); /* tx object for edit sheet */
+  const [txMenu,     setTxMenu]     = useState(null);
+  const [editTx,     setEditTx]     = useState(null);
   const [delTxId,    setDelTxId]    = useState(null);
   const [deletingTx, setDeletingTx] = useState(false);
+
+  const user = JSON.parse(localStorage.getItem('cb3_user') || '{}');
 
   const load = useCallback(async () => {
     try {
@@ -281,7 +570,6 @@ export default function PartyDetail() {
 
   const bs = balanceStatus(party.balance);
 
-  /* Group by day */
   const groups = [];
   const seen   = {};
   [...txs].sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(tx => {
@@ -293,7 +581,7 @@ export default function PartyDetail() {
   return (
     <div style={{ background:'#f2f2f2', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
 
-      {/* Header */}
+      {/* Header — unchanged */}
       <div style={{ background:'white', borderBottom:'1px solid #eee', padding:'12px 16px', display:'flex', alignItems:'center', gap:12, position:'sticky', top:0, zIndex:100 }}>
         <button onClick={()=>navigate(-1)} style={{ width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#444', flexShrink:0 }}>←</button>
         <div style={{ width:40, height:40, borderRadius:'50%', background:avatarColor(party.name), display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:18, flexShrink:0 }}>
@@ -317,7 +605,7 @@ export default function PartyDetail() {
         )}
       </div>
 
-      {/* Transaction list */}
+      {/* Transaction list — unchanged */}
       <div style={{ flex:1, overflowY:'auto', paddingBottom:160 }}>
         {groups.length===0 ? (
           <div style={{ textAlign:'center', padding:'80px 20px' }}>
@@ -349,8 +637,6 @@ export default function PartyDetail() {
                       <p style={{ fontSize:22, fontWeight:800, color:'#1a1d2e', letterSpacing:-0.5 }}>₹{fmt(tx.amount,0)}</p>
                       <p style={{ fontSize:11, color:'#bbb', whiteSpace:'nowrap' }}>{fmtTime(tx.date)}</p>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#b0bec5" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-
-                      {/* 3-dot on each bubble */}
                       <button onClick={e=>{ e.stopPropagation(); setTxMenu(tx); }}
                         style={{ marginLeft:'auto', width:24, height:24, borderRadius:'50%', background:'#f0f0f0', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="#888">
@@ -360,8 +646,6 @@ export default function PartyDetail() {
                     </div>
                     {tx.note && <p style={{ fontSize:12, color:'#999', marginTop:5, marginLeft:38 }}>{tx.note}</p>}
                   </div>
-
-                  {/* Balance after — correct status */}
                   {tx.balanceAfter !== undefined && (
                     <p style={{ fontSize:11, color: tx.balanceAfter===0?'#1a9e5c':tx.balanceAfter>0?'#e53935':'#1a9e5c', marginTop:4, fontWeight:600,
                       paddingLeft:isGot?4:0, paddingRight:isGot?0:4 }}>
@@ -375,7 +659,7 @@ export default function PartyDetail() {
         ))}
       </div>
 
-      {/* Bottom bar */}
+      {/* Bottom bar — unchanged */}
       <div style={{ position:'fixed', bottom:'var(--nav-h)', left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:'var(--maxw)', background:'white', borderTop:'1px solid #eee', zIndex:200 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 18px 8px', borderBottom:'1px solid #f5f5f5' }}>
           <p style={{ fontSize:14, color:'#666', fontWeight:500 }}>Balance</p>
@@ -399,12 +683,12 @@ export default function PartyDetail() {
       </div>
 
       {/* Add tx */}
-      {showAddTx && <AddTxScreen party={party} type={showAddTx} navigate={navigate} onClose={()=>setShowAddTx(null)} onSaved={()=>{ setShowAddTx(null); load(); }}/>}
+      {showAddTx && <AddTxScreen party={party} type={showAddTx} onClose={()=>setShowAddTx(null)} onSaved={()=>{ setShowAddTx(null); load(); }}/>}
 
-      {/* Edit tx sheet */}
+      {/* Edit tx */}
       {editTx && <EditTxSheet tx={editTx} onClose={()=>setEditTx(null)} onSaved={()=>{ setEditTx(null); load(); }}/>}
 
-      {/* Transaction 3-dot menu */}
+      {/* Tx 3-dot menu */}
       {txMenu && (
         <div className="overlay" onClick={()=>setTxMenu(null)}>
           <div className="sheet" onClick={e=>e.stopPropagation()}>
@@ -456,20 +740,36 @@ export default function PartyDetail() {
         </div>
       )}
 
-      {/* Party options menu */}
+      {/* ── Party options menu ── ONLY CHANGE: "Create Bill" → "Report" ── */}
       {showMenu && (
         <div className="overlay" onClick={()=>setShowMenu(false)}>
           <div className="sheet" onClick={e=>e.stopPropagation()}>
             <h3 style={{ fontWeight:800, marginBottom:16 }}>{party.name}</h3>
-            <button className="btn btn-ghost btn-full" style={{ marginBottom:10 }} onClick={()=>{ setShowMenu(false); setShowEdit(true); }}>✏️ &nbsp;Edit Party</button>
-            <button className="btn btn-full" style={{ marginBottom:10, background:'var(--blue-lt)', color:'var(--blue)' }} onClick={()=>{ setShowMenu(false); navigate(`/more/billing?party=${id}`); }}>🧾 &nbsp;Create Bill</button>
-            <button className="btn btn-full" style={{ marginBottom:10, background:'var(--red-lt)', color:'var(--red)' }} onClick={()=>{ setShowMenu(false); setShowDel(true); }}>🗑️ &nbsp;Delete Party</button>
+
+            {/* Edit Party — same as before */}
+            <button className="btn btn-ghost btn-full" style={{ marginBottom:10 }}
+              onClick={()=>{ setShowMenu(false); setShowEdit(true); }}>
+              ✏️ &nbsp;Edit Party
+            </button>
+
+            {/* Report — same size/position as old "Create Bill" */}
+            <button className="btn btn-full" style={{ marginBottom:10, background:'var(--blue-lt)', color:'var(--blue)' }}
+              onClick={()=>{ setShowMenu(false); setShowReport(true); }}>
+              📄 &nbsp;Report
+            </button>
+
+            {/* Delete Party — same as before */}
+            <button className="btn btn-full" style={{ marginBottom:10, background:'var(--red-lt)', color:'var(--red)' }}
+              onClick={()=>{ setShowMenu(false); setShowDel(true); }}>
+              🗑️ &nbsp;Delete Party
+            </button>
+
             <button className="btn btn-ghost btn-full" onClick={()=>setShowMenu(false)}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Edit party */}
+      {/* Edit party — unchanged */}
       {showEdit && (
         <div className="overlay" onClick={()=>setShowEdit(false)}>
           <div className="sheet" onClick={e=>e.stopPropagation()} style={{ maxHeight:'88vh', overflowY:'auto' }}>
@@ -497,7 +797,7 @@ export default function PartyDetail() {
         </div>
       )}
 
-      {/* Delete party */}
+      {/* Delete party — unchanged */}
       {showDel && (
         <div className="overlay" onClick={()=>setShowDel(false)}>
           <div className="sheet" onClick={e=>e.stopPropagation()}>
@@ -509,6 +809,16 @@ export default function PartyDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Report sheet — replaces billing entirely */}
+      {showReport && (
+        <ReportSheet
+          party={party}
+          txs={txs}
+          user={user}
+          onClose={()=>setShowReport(false)}
+        />
       )}
     </div>
   );
