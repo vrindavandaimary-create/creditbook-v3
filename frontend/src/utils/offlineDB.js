@@ -1,15 +1,19 @@
 /**
  * offlineDB.js
- * PLACE AT: frontend/src/utils/offlineDB.js   (NEW FILE)
+ * PLACE AT: frontend/src/utils/offlineDB.js
  *
- * All IndexedDB operations for the offline layer.
- * Two stores:
- *   "queue"  – pending mutations (POST/PUT/DELETE) to replay when online
- *   "cache"  – GET response snapshots for offline reads
+ * CHANGES vs original:
+ *  • Added TTL_SHORT / TTL_LONG exports so callers can choose.
+ *  • Default TTL raised to 24 h (was 10 min) — prevents cached categories
+ *    and parties from expiring between short offline sessions.
  */
 
 const DB_NAME    = 'creditbook_offline';
 const DB_VERSION = 1;
+
+/* ── TTL constants ── */
+export const TTL_SHORT = 10  * 60  * 1000;          // 10 min  (transactions, dashboard)
+export const TTL_LONG  = 7   * 24  * 60 * 60 * 1000; // 7 days  (categories, parties)
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -93,8 +97,10 @@ export async function getQueueCount() {
 
 /* ── CACHE ── */
 
-// TTL default: 10 minutes
-export async function setCache(key, data, ttl = 10 * 60 * 1000) {
+// Default TTL is now 24 h instead of 10 min.
+// Pass TTL_SHORT for frequently-changing data (dashboard, transactions).
+// Pass TTL_LONG  for reference data (categories, parties).
+export async function setCache(key, data, ttl = 24 * 60 * 60 * 1000) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx  = db.transaction('cache', 'readwrite');
