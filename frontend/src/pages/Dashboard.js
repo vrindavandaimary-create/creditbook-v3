@@ -303,7 +303,12 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     try { const r = await dashAPI.get(); setData(r.data.data); }
-    catch(e) { console.error(e); toast.error('Failed to load dashboard'); }
+    catch(e) {
+      console.error(e);
+      // Only show error toast when online — if offline, the fallback
+      // data object {} handles rendering without a confusing error message.
+      if (navigator.onLine) toast.error('Failed to load dashboard');
+    }
     finally { setLoading(false); }
   }, []);
 
