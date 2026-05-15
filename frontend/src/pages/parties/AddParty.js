@@ -1,3 +1,15 @@
+/**
+ * AddParty.js  (REPLACE: frontend/src/pages/parties/AddParty.js)
+ *
+ * CHANGES vs original:
+ *  • When offline, partyAPI.create() returns { queued:true } with no data._id.
+ *    Old code: navigate(`/parties/${r.data.data._id}`)  → CRASH (undefined)
+ *    New code: check r.data.queued → navigate to /parties list instead.
+ *  • categoryAPI.getAll() failure when offline now silently falls through
+ *    (cached categories are served by client.js; if truly none, UI already
+ *    shows the "No categories yet" message).
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -11,9 +23,21 @@ export default function AddParty() {
   const [form, setForm] = useState({ name:'', categoryId:initCat, phone:'', address:'', notes:'' });
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
-    categoryAPI.getAll().then(r => setCategories(r.data.data || [])).catch(()=>{});
+    const on  = () => setIsOffline(false);
+    const off = () => setIsOffline(true);
+    window.addEventListener('online',  on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
+  useEffect(() => {
+    // client.js serves cached categories when offline — this always resolves
+    categoryAPI.getAll()
+      .then(r => setCategories(r.data.data || []))
+      .catch(() => {}); // silent — UI shows "No categories yet" if truly empty
   }, []);
 
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}));
@@ -25,10 +49,23 @@ export default function AddParty() {
     setLoading(true);
     try {
       const r = await partyAPI.create(form);
-      toast.success('Party added!');
-      navigate(`/parties/${r.data.data._id}`, { replace: true });
-    } catch(err) { toast.error(err.response?.data?.message || 'Failed'); }
-    finally { setLoading(false); }
+
+      if (r.data?.queued) {
+        // ── OFFLINE PATH ──
+        // No real _id exists yet. Go back to the parties list;
+        // the new party will appear after the queue syncs.
+        toast.success('Party saved offline — will sync when connected.');
+        navigate('/parties', { replace: true });
+      } else {
+        // ── ONLINE PATH ──
+        toast.success('Party added!');
+        navigate(`/parties/${r.data.data._id}`, { replace: true });
+      }
+    } catch(err) {
+      toast.error(err.response?.data?.message || 'Failed to add party');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,6 +77,13 @@ export default function AddParty() {
         </div>
         <p style={{ opacity:.7, fontSize:13, marginTop:4 }}>Add a person or business you deal with</p>
       </div>
+
+      {isOffline && (
+        <div style={{ background:'#fff8e1', borderBottom:'1px solid #ffe082', padding:'8px 16px', fontSize:12, color:'#7a5c00', display:'flex', alignItems:'center', gap:6 }}>
+          <span>📶</span> Offline — party will sync when you reconnect.
+        </div>
+      )}
+
       <form onSubmit={submit} style={{ padding:16 }}>
         <div className="field">
           <label>Category *</label>
