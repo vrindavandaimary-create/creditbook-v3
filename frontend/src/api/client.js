@@ -1,29 +1,14 @@
 /**
  * client.js  (REPLACE: frontend/src/api/client.js)
  *
- * Fixes vs previous broken version:
- *
- * Fix 1 – Cache keys are always RELATIVE paths.
- *          In production, axios config.url can be the full absolute URL
- *          (https://xxx.onrender.com/api/dashboard). We strip it to just
- *          /api/dashboard so save and lookup always match.
- *
- * Fix 2 – Query params are sorted before serialization.
- *          partyAPI.getAll({ categoryId:'abc' }) → key: /api/parties?categoryId=abc
- *          Always consistent regardless of JS object key order.
- *
- * Fix 3 – After offline mutation, onSaved() calls load() which does
- *          another GET. That GET also hits the offline path and now
- *          correctly serves the cached data instead of throwing.
- *          The UI refreshes with stale-but-visible data instead of
- *          crashing and navigating away.
- *
- * Fix 4 – partyAPI.getOne (/api/parties/:id) is now cached on every
- *          successful online load, so it's available when offline.
+ * CHANGES vs previous version:
+ *  • Imports TTL_SHORT / TTL_LONG from offlineDB.
+ *  • Categories and parties GETs are cached with TTL_LONG (7 days) so they
+ *    survive long offline sessions.  Everything else keeps TTL_SHORT (10 min).
  */
 
 import axios from 'axios';
-import { enqueue, setCache, getCache, clearCache } from '../utils/offlineDB';
+import { enqueue, setCache, getCache, clearCache, TTL_SHORT, TTL_LONG } from '../utils/offlineDB';
 
 const BASE = process.env.REACT_APP_API_URL || '';
 
@@ -59,6 +44,15 @@ function buildCacheKey(url, params) {
   return path;
 }
 
+/* ─── Pick TTL based on endpoint ─── */
+// Categories and parties are reference data that rarely change —
+// cache them for 7 days so they're available during long offline periods.
+const LONG_TTL_PREFIXES = ['/api/categories', '/api/parties'];
+
+function cacheTTL(key) {
+  return LONG_TTL_PREFIXES.some(p => key.startsWith(p)) ? TTL_LONG : TTL_SHORT;
+}
+
 /* ─── Response interceptor ─── */
 client.interceptors.response.use(
 
@@ -71,7 +65,7 @@ client.interceptors.response.use(
     // Cache every successful GET
     if (method === 'GET' && response.data?.success) {
       const key = buildCacheKey(url, params);
-      await setCache(key, response.data).catch(() => {});
+      await setCache(key, response.data, cacheTTL(key)).catch(() => {});
     }
 
     // Invalidate stale caches after mutations
@@ -90,7 +84,7 @@ client.interceptors.response.use(
     const url    = config.url || '';
     const params = config.params;
 
-    /* 401 — redirect to login (unchanged from original) */
+    /* 401 — redirect to login */
     if (err.response?.status === 401) {
       localStorage.removeItem('cb3_token');
       localStorage.removeItem('cb3_user');
@@ -104,17 +98,9 @@ client.interceptors.response.use(
       const cached = await getCache(key).catch(() => null);
 
       if (cached) {
-        /*
-         * Shape: { data: cached, status: 200 }
-         * Pages read:  r.data.data          → cached.data          ✓
-         *              r.data.data.party     → cached.data.party    ✓  (PartyDetail)
-         *              r.data.data || []     → cached.data || []    ✓  (Parties list)
-         */
         return { data: cached, status: 200, offline: true };
       }
 
-      // No cache available — give a structured error so catch blocks
-      // show their own message instead of crashing
       return Promise.reject({
         ...err,
         offline: true,
@@ -151,28 +137,22 @@ client.interceptors.response.use(
         });
       }
 
-      // Parse body (axios serialises it to a JSON string)
+      // Parse body
       let data = config.data;
       try { data = typeof data === 'string' ? JSON.parse(data) : data; }
       catch (_) { data = null; }
 
       await enqueue({
         method,
-        url:         buildCacheKey(url, null),   // store relative path only
+        url:         buildCacheKey(url, null),
         data,
         description: humanLabel(method, url),
       }).catch(() => {});
 
       /*
-       * Return fake-success so the page's try block continues:
-       *
-       *   await txAPI.add(...)             ← gets this fake response (no throw)
-       *   toast.success('Entry saved!')    ← fires ✓
-       *   onSaved()                        ← fires ✓
-       *     └─ load()
-       *          └─ partyAPI.getOne()      ← also offline → served from cache ✓
-       *
-       * The catch block with toast.error never fires. ✓
+       * Return fake-success so pages continue normally.
+       * Note: `data` is intentionally absent (no real _id exists yet).
+       * Pages must check r.data.queued before accessing r.data.data._id.
        */
       return {
         data:    { success: true, queued: true, message: 'Saved offline. Will sync when connected.' },
@@ -191,7 +171,6 @@ async function invalidateRelatedCaches(url) {
 
   if (url.includes('/api/transactions')) {
     keys.push('/api/transactions', '/api/dashboard', '/api/parties');
-    // Invalidate specific party detail if mongo id is in the URL
     const m = url.match(/\/api\/transactions\/([a-f0-9]{24})/i);
     if (m) keys.push(`/api/transactions/${m[1]}`);
   }
