@@ -538,7 +538,17 @@ export default function PartyDetail() {
       setParty(r.data.data.party);
       setTxs(r.data.data.transactions||[]);
       setCats(cR.data.data||[]);
-    } catch { toast.error('Failed to load'); navigate(-1); }
+    } catch(err) {
+      // When offline + cached data exists, client.js serves it — catch means
+      // genuinely no data is available.  Don't navigate away when offline;
+      // show whatever state already exists with a gentle warning.
+      if (!navigator.onLine) {
+        toast.error('Offline — no cached data available for this party.');
+      } else {
+        toast.error('Failed to load');
+        navigate(-1);
+      }
+    }
     finally { setLoading(false); }
   }, [id, navigate]);
 
