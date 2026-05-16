@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { partyAPI, categoryAPI } from '../../api';
+import { getPending } from '../../utils/pendingStore';
 import { fmt, avatarColor, avatarLetter, balanceClass } from '../../utils/helpers';
 
 /* ── Debounce hook ── */
@@ -41,12 +42,27 @@ export default function Parties() {
         categoryAPI.getAll(),
       ]);
 
-      if (pR.status === 'fulfilled') setParties(pR.value.data.data || []);
-      if (cR.status === 'fulfilled') setCategories(cR.value.data.data || []);
+      let partiesList    = pR.status === 'fulfilled' ? (pR.value.data.data || []) : [];
+      let categoriesList = cR.status === 'fulfilled' ? (cR.value.data.data || []) : [];
 
-      // Both failed while offline → tell the user
+      // Merge pending offline-created items so they appear immediately
+      const pendingParties = getPending('party');
+      const pendingCats    = getPending('category');
+
+      if (pendingParties.length > 0) {
+        const ids = new Set(partiesList.map(p => p._id));
+        partiesList = [...partiesList, ...pendingParties.filter(p => !ids.has(p._id))];
+      }
+      if (pendingCats.length > 0) {
+        const ids = new Set(categoriesList.map(c => c._id));
+        categoriesList = [...categoriesList, ...pendingCats.filter(c => !ids.has(c._id))];
+      }
+
+      setParties(partiesList);
+      setCategories(categoriesList);
+
       if (pR.status === 'rejected' && cR.status === 'rejected' && !navigator.onLine) {
-        toast.error('Offline — no cached data. Visit this page online first.');
+        toast.error('Offline — no cached data. Go online first to download data.');
       }
     } finally {
       setLoading(false);
