@@ -1,6 +1,5 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import NotificationBell from '../notifications/NotificationBell';
 
 const NAV = [
   { path:'/', label:'Home', icon: a => (
@@ -36,16 +35,6 @@ export default function AppLayout() {
 
   return (
     <div style={{ maxWidth:'var(--maxw)', margin:'0 auto', minHeight:'100vh', background:'var(--bg)', position:'relative' }}>
-      {/* Notification Bell — fixed top-right */}
-      <div style={{
-        position: 'fixed', top: 12, right: 16, zIndex: 350,
-        background: '#fff', borderRadius: '50%',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-        width: 40, height: 40,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <NotificationBell />
-      </div>
       <Outlet />
       <nav className="bottom-nav" style={{ height:'var(--nav-h)' }}>
         {NAV.map(item => {
