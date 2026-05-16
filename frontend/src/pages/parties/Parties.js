@@ -28,15 +28,14 @@ export default function Parties() {
 
   const debouncedSearch = useDebounce(search, 400);
 
-  const load = useCallback(async () => {
+    const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
       if (selCat)          params.categoryId = selCat;
       if (debouncedSearch) params.search     = debouncedSearch;
 
-      // Fetch independently so a cache miss on one doesn't blank both.
-      // client.js serves IndexedDB cache transparently when offline.
+      // allSettled: a cache miss on one must not wipe out the other
       const [pR, cR] = await Promise.allSettled([
         partyAPI.getAll(params),
         categoryAPI.getAll(),
@@ -45,9 +44,9 @@ export default function Parties() {
       if (pR.status === 'fulfilled') setParties(pR.value.data.data || []);
       if (cR.status === 'fulfilled') setCategories(cR.value.data.data || []);
 
-      // If both failed and we're offline, show a helpful toast once
+      // Both failed while offline → tell the user
       if (pR.status === 'rejected' && cR.status === 'rejected' && !navigator.onLine) {
-        toast.error('Offline — no cached data available.');
+        toast.error('Offline — no cached data. Visit this page online first.');
       }
     } finally {
       setLoading(false);
