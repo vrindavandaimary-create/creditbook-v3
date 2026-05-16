@@ -49,7 +49,7 @@ const generateReportPDF = ({ party, txs, from, to, user }) => {
     const bgColor = isGot ? '#f0fff4' : '#fff5f5';
     return `
     <tr style="background:${i%2===0?'#fff':bgColor}">
-      <td>${fmtFull(tx.date)}<br/><small style="color:#aaa">${fmtTime(tx.date)}</small></td>
+      <td>${fmtFull(tx.date)}<br/><small style="color:#aaa">${fmtTime(tx.createdAt || tx.date)}</small></td>
       <td>${tx.note || '—'}</td>
       <td style="text-align:right;color:#e53935;font-weight:700">${isGot  ? '' : '₹' + Number(tx.amount).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
       <td style="text-align:right;color:#1a9e5c;font-weight:700">${isGot  ? '₹' + Number(tx.amount).toLocaleString('en-IN',{minimumFractionDigits:2}) : ''}</td>
@@ -654,7 +654,7 @@ export default function PartyDetail() {
                         </svg>
                       </div>
                       <p style={{ fontSize:22, fontWeight:800, color:'#1a1d2e', letterSpacing:-0.5 }}>₹{fmt(tx.amount,0)}</p>
-                      <p style={{ fontSize:11, color:'#bbb', whiteSpace:'nowrap' }}>{fmtTime(tx.date)}</p>
+                      <p style={{ fontSize:11, color:'#bbb', whiteSpace:'nowrap' }}>{fmtTime(tx.createdAt || tx.date)}</p>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#b0bec5" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                       <button onClick={e=>{ e.stopPropagation(); setTxMenu(tx); }}
                         style={{ marginLeft:'auto', width:24, height:24, borderRadius:'50%', background:'#f0f0f0', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
@@ -737,7 +737,7 @@ export default function PartyDetail() {
                 <p style={{ fontWeight:800, fontSize:17, color:txMenu.type==='got'?'#1a9e5c':'#e53935' }}>
                   {txMenu.type==='got'?'+':'-'}₹{fmt(txMenu.amount,0)}
                 </p>
-                <p style={{ fontSize:12, color:'#aaa' }}>{txMenu.note || fmtTime(txMenu.date)}</p>
+                <p style={{ fontSize:12, color:'#aaa' }}>{txMenu.note || fmtTime(txMenu.createdAt || txMenu.date)}</p>
               </div>
             </div>
             <button onClick={()=>{ setTxMenu(null); setEditTx(txMenu); }}
