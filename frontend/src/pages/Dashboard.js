@@ -15,16 +15,16 @@ function CategoryFormSheet({ onClose, onDone, existing }) {
   const submit = async e => {
     e.preventDefault();
     if (!name.trim()) return toast.error('Name required');
+    // Offline guard — prevent duplicates from queued offline creates
+    if (!navigator.onLine) {
+      return toast.error('Adding/editing categories requires an internet connection.');
+    }
     setSaving(true);
     try {
-      const r = existing
+      existing
         ? await categoryAPI.update(existing._id, { name:name.trim(), color })
         : await categoryAPI.create({ name:name.trim(), color });
-      if (r.data?.queued) {
-        toast.success((existing ? 'Category update' : 'Category') + ' saved offline — will sync when connected.');
-      } else {
-        toast.success(existing ? 'Category updated!' : 'Category created!');
-      }
+      toast.success(existing ? 'Category updated!' : 'Category created!');
       onDone();
     } catch(err) { toast.error(err.response?.data?.message || 'Failed'); }
     finally { setSaving(false); }
@@ -63,13 +63,12 @@ function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
   const submit = async () => {
     setLoading(true);
     try {
-      const r = await categoryAPI.delete(cat._id, { action, moveToCategoryId:action==='move_parties'?moveId:undefined });
-      if (r.data?.queued) {
-        toast.success('Delete queued — will sync when connected.');
-      } else {
-        toast.success('Category deleted!');
+      if (!navigator.onLine) {
+        toast.error('Deleting categories requires an internet connection.');
+        return;
       }
-      onDone();
+      await categoryAPI.delete(cat._id, { action, moveToCategoryId:action==='move_parties'?moveId:undefined });
+      toast.success('Category deleted!'); onDone();
     } catch(err) { toast.error(err.response?.data?.message || 'Failed'); setLoading(false); }
   };
   return (
@@ -314,8 +313,8 @@ export default function Dashboard() {
     try { const r = await dashAPI.get(); setData(r.data.data); }
     catch(e) {
       console.error(e);
-      // Only show error when online — if offline the empty fallback handles render fine.
       if (navigator.onLine) toast.error('Failed to load dashboard');
+      // Offline: the data fallback (data || {grouped:[],...}) handles the render
     }
     finally { setLoading(false); }
   }, []);
