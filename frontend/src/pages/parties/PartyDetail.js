@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { partyAPI, txAPI, categoryAPI } from '../../api';
+import { getCache } from '../../utils/offlineDB';
 import { fmt, avatarLetter, avatarColor, todayStr } from '../../utils/helpers';
 
 const fmtTime = d => new Date(d).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true }).toUpperCase();
@@ -370,26 +371,14 @@ function AddTxScreen({ party, type, onClose, onSaved }) {
     if (n>1000000000)       return toast.error('Amount exceeds limit');
     setSaving(true);
     try {
-      const r = await txAPI.add({ partyId:party._id, type, amount:n, note, date });
-      if (r.data?.queued) {
-        // Offline: transaction queued in IndexedDB.
-        // Build a local fake entry so it appears in the list immediately
-        // without waiting for sync. The real entry replaces it on next load().
+      const txRes = await txAPI.add({ partyId:party._id, type, amount:n, note, date });
+      if (txRes.data?.queued) {
         toast.success('Saved offline ✓  Will sync when connected.');
-        const fakeTx = {
-          _id:       'pending_' + Date.now(),
-          partyId:   party._id,
-          type,
-          amount:    n,
-          note,
-          date,
-          createdAt: new Date().toISOString(),
-          pending:   true,
-        };
-        onSaved(fakeTx);
+        onSaved({ _id:'pending_'+Date.now(), partyId:party._id, type, amount:n,
+                  note, date, createdAt:new Date().toISOString(), pending:true });
       } else {
         toast.success('Entry saved!');
-        onSaved(null); // null = online, caller should reload from server
+        onSaved(null);
       }
     } catch(err) { toast.error(err.response?.data?.message||'Failed'); setSaving(false); }
   };
@@ -552,13 +541,24 @@ export default function PartyDetail() {
   const user = JSON.parse(localStorage.getItem('cb3_user') || '{}');
 
   const load = useCallback(async () => {
-    try {
-      const [r, cR] = await Promise.all([partyAPI.getOne(id), categoryAPI.getAll()]);
-      setParty(r.data.data.party);
-      setTxs(r.data.data.transactions||[]);
-      setCats(cR.data.data||[]);
-    } catch { toast.error('Failed to load'); navigate(-1); }
-    finally { setLoading(false); }
+    const [partyRes, catRes] = await Promise.allSettled([
+      partyAPI.getOne(id),
+      categoryAPI.getAll(),
+    ]);
+    if (catRes.status === 'fulfilled') setCats(catRes.value.data.data || []);
+    if (partyRes.status === 'fulfilled') {
+      setParty(partyRes.value.data.data.party);
+      setTxs(partyRes.value.data.data.transactions || []);
+    } else if (!navigator.onLine) {
+      // Try parties-list cache as fallback
+      try {
+        const listCache = await getCache('/api/parties');
+        const found = (listCache?.data || []).find(p => p._id === id);
+        if (found) { setParty(found); setTxs([]); }
+        else { toast.error('Offline — party not in cache. Visit online first.'); navigate(-1); }
+      } catch { toast.error('Offline — no cached data.'); navigate(-1); }
+    } else { toast.error('Failed to load party'); navigate(-1); }
+    setLoading(false);
   }, [id, navigate]);
 
   useEffect(() => { load(); }, [load]);
@@ -705,16 +705,10 @@ export default function PartyDetail() {
       {showAddTx && <AddTxScreen party={party} type={showAddTx} onClose={()=>setShowAddTx(null)} onSaved={fakeTx => {
             setShowAddTx(null);
             if (fakeTx) {
-              // Offline optimistic update:
-              //   1. Append the pending transaction to the visible list
-              //   2. Adjust the displayed balance so the header is correct
-              //   3. Do NOT call load() — cache still has old data
               setTxs(prev => [...prev, fakeTx]);
               const delta = fakeTx.type === 'got' ? -fakeTx.amount : fakeTx.amount;
-              setParty(prev => ({ ...prev, balance: (prev.balance || 0) + delta }));
-            } else {
-              load(); // Online — reload fresh from server
-            }
+              setParty(prev => ({ ...prev, balance:(prev.balance||0)+delta }));
+            } else { load(); }
           }}/>}
 
       {/* Edit tx */}
