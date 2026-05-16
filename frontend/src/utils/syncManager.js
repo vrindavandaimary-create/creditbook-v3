@@ -1,14 +1,28 @@
 /**
- * syncManager.js
- * PLACE AT: frontend/src/utils/syncManager.js   (NEW FILE)
+ * syncManager.js  –  frontend/src/utils/syncManager.js
  *
  * Replays the IndexedDB queue when connectivity is restored.
- * Called from App.js on mount and on the browser "online" event.
+ *
+ * FIX: after a successful sync we call clearRelatedCaches() so that
+ * pages refetch fresh data from the server on their next load()
+ * instead of serving the now-outdated cached responses.
  */
 
-import { getQueue, dequeue, incrementRetry } from './offlineDB';
+import { getQueue, dequeue, incrementRetry, clearCache } from './offlineDB';
 
 const MAX_RETRIES = 3;
+
+/* ─── Endpoints whose caches should be wiped after any sync ── */
+const CACHE_KEYS_TO_CLEAR = [
+  '/api/parties',
+  '/api/categories',
+  '/api/dashboard',
+  '/api/transactions',
+];
+
+async function clearRelatedCaches() {
+  await Promise.all(CACHE_KEYS_TO_CLEAR.map(k => clearCache(k).catch(() => {})));
+}
 
 export async function syncQueue() {
   const queue = await getQueue();
@@ -18,7 +32,6 @@ export async function syncQueue() {
   let failed = 0;
 
   for (const item of queue) {
-    // Drop items that exceeded retry limit
     if ((item.retries || 0) >= MAX_RETRIES) {
       await dequeue(item.id).catch(() => {});
       failed++;
@@ -42,7 +55,6 @@ export async function syncQueue() {
         await dequeue(item.id).catch(() => {});
         synced++;
       } else if (res.status === 401) {
-        // Token expired – drop the item, the auth interceptor will redirect
         await dequeue(item.id).catch(() => {});
         failed++;
       } else {
@@ -50,10 +62,15 @@ export async function syncQueue() {
         failed++;
       }
     } catch {
-      // Still offline – stop trying, leave items in queue
+      // Still offline — stop, leave items in queue
       await incrementRetry(item.id).catch(() => {});
       break;
     }
+  }
+
+  // Wipe cached GETs so next page load fetches fresh server data
+  if (synced > 0) {
+    await clearRelatedCaches().catch(() => {});
   }
 
   return { synced, failed };
@@ -61,9 +78,7 @@ export async function syncQueue() {
 
 /**
  * Wire up online/offline events.
- * Call once in App.js — returns a cleanup function for useEffect.
- *
- * onStatusChange(isOnline: boolean, syncResult: {synced,failed} | null)
+ * Call once from App.js — returns a cleanup function for useEffect.
  */
 export function initConnectivityListeners(onStatusChange) {
   const handleOnline = async () => {
@@ -78,7 +93,7 @@ export function initConnectivityListeners(onStatusChange) {
   window.addEventListener('online',  handleOnline);
   window.addEventListener('offline', handleOffline);
 
-  // Listen for the SW's BACKGROUND_SYNC message
+  // Listen for SW background-sync message
   const swListener = async (event) => {
     if (event.data?.type === 'BACKGROUND_SYNC') {
       const result = await syncQueue().catch(() => ({ synced: 0, failed: 0 }));
