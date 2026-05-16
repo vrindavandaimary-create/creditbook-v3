@@ -1,24 +1,16 @@
 /**
- * offlineDB.js  –  frontend/src/utils/offlineDB.js
+ * offlineDB.js
+ * PLACE AT: frontend/src/utils/offlineDB.js   (NEW FILE)
  *
- * IndexedDB layer for offline support.
- * Stores:
+ * All IndexedDB operations for the offline layer.
+ * Two stores:
  *   "queue"  – pending mutations (POST/PUT/DELETE) to replay when online
  *   "cache"  – GET response snapshots for offline reads
- *
- * KEY FIX: default TTL raised from 10 min → 7 days.
- * Categories and parties are reference data that almost never changes;
- * caching them for 7 days means users can work offline for days, not minutes.
  */
 
 const DB_NAME    = 'creditbook_offline';
 const DB_VERSION = 1;
 
-/* ─── TTL presets (exported so client.js can pick the right one) ── */
-export const TTL_SHORT = 15 * 60 * 1000;            // 15 min  – dashboard, transactions
-export const TTL_LONG  = 7  * 24 * 60 * 60 * 1000; // 7 days  – categories, parties
-
-/* ─── DB open ─────────────────────────────────────────────── */
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -39,7 +31,7 @@ function openDB() {
   });
 }
 
-/* ─── QUEUE ────────────────────────────────────────────────── */
+/* ── QUEUE ── */
 
 export async function enqueue(item) {
   const db = await openDB();
@@ -99,13 +91,10 @@ export async function getQueueCount() {
   });
 }
 
-/* ─── CACHE ────────────────────────────────────────────────── */
+/* ── CACHE ── */
 
-/**
- * Default TTL = 7 days (TTL_LONG).
- * Pass TTL_SHORT for high-churn data like dashboard totals or transaction lists.
- */
-export async function setCache(key, data, ttl = TTL_LONG) {
+// TTL default: 7 days (long enough for offline sessions; categories & parties rarely change)
+export async function setCache(key, data, ttl = 7 * 24 * 60 * 60 * 1000) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx  = db.transaction('cache', 'readwrite');
