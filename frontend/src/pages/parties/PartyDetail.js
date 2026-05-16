@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { partyAPI, txAPI, categoryAPI } from '../../api';
+import { getCache } from '../../utils/offlineDB';
 import { fmt, avatarLetter, avatarColor, todayStr } from '../../utils/helpers';
 
 const fmtTime = d => new Date(d).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true }).toUpperCase();
@@ -372,7 +373,8 @@ function AddTxScreen({ party, type, onClose, onSaved }) {
     try {
       const txRes = await txAPI.add({ partyId:party._id, type, amount:n, note, date });
       if (txRes.data?.queued) {
-        toast.success('Entry saved offline — will sync when connected.');
+        // Stored in IndexedDB — will auto-sync when online
+        toast.success('Saved offline ✓ Will sync when connected.');
       } else {
         toast.success('Entry saved!');
       }
@@ -538,28 +540,48 @@ export default function PartyDetail() {
   const user = JSON.parse(localStorage.getItem('cb3_user') || '{}');
 
   const load = useCallback(async () => {
-    try {
-      // Both calls hit IndexedDB cache when offline (client.js handles this).
-      // They only throw if offline AND no cache is available for that key.
-      const [r, cR] = await Promise.all([
-        partyAPI.getOne(id),
-        categoryAPI.getAll(),
-      ]);
-      setParty(r.data.data.party);
-      setTxs(r.data.data.transactions || []);
-      setCats(cR.data.data || []);
-    } catch (err) {
-      if (!navigator.onLine) {
-        // Offline with no cached data — stay on the page and show a message.
-        // Whatever state is already set (or null) stays as-is.
-        toast.error('Offline — no cached data available for this party.');
-      } else {
-        toast.error('Failed to load party');
+    // Use allSettled: a category-cache miss must NOT kill the party load.
+    const [partyRes, catRes] = await Promise.allSettled([
+      partyAPI.getOne(id),
+      categoryAPI.getAll(),
+    ]);
+
+    // ── Categories (nice-to-have; page still works without them) ──
+    if (catRes.status === 'fulfilled') {
+      setCats(catRes.value.data.data || []);
+    }
+
+    // ── Party + transactions ──
+    if (partyRes.status === 'fulfilled') {
+      setParty(partyRes.value.data.data.party);
+      setTxs(partyRes.value.data.data.transactions || []);
+    } else if (!navigator.onLine) {
+      // partyAPI.getOne cache miss while offline.
+      // Attempt to reconstruct basic party info from the parties-list cache
+      // so the user can still make transactions.
+      try {
+        const listCache = await getCache('/api/parties');
+        const partiesArr = listCache?.data || [];
+        const found = partiesArr.find(p => p._id === id);
+        if (found) {
+          setParty(found);
+          setTxs([]); // list cache has no transaction history — that's fine
+          toast('Offline — showing basic party info. Transaction history unavailable.', { icon: '📶' });
+        } else {
+          toast.error('Offline — party not found in cache. Please visit this page online first.');
+          navigate(-1);
+        }
+      } catch {
+        toast.error('Offline — no cached data available.');
         navigate(-1);
       }
-    } finally {
-      setLoading(false);
+    } else {
+      // Online but server returned an error
+      toast.error('Failed to load party');
+      navigate(-1);
     }
+
+    setLoading(false);
   }, [id, navigate]);
 
   useEffect(() => { load(); }, [load]);
