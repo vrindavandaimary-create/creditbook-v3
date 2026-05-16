@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { partyAPI, txAPI, categoryAPI, reminderAPI } from '../../api';
+import { partyAPI, txAPI, categoryAPI } from '../../api';
 import { getCache } from '../../utils/offlineDB';
 import { fmt, avatarLetter, avatarColor, todayStr } from '../../utils/helpers';
-import ReminderModal from '../../components/notifications/ReminderModal';
 
 const fmtTime = d => new Date(d).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true }).toUpperCase();
 const fmtDay  = d => {
@@ -534,9 +533,6 @@ export default function PartyDetail() {
   const [saving,     setSaving]     = useState(false);
   const [deleting,   setDeleting]   = useState(false);
 
-  const [reminders,         setReminders]         = useState([]);
-  const [showReminderModal, setShowReminderModal] = useState(false);
-
   const [txMenu,     setTxMenu]     = useState(null);
   const [editTx,     setEditTx]     = useState(null);
   const [delTxId,    setDelTxId]    = useState(null);
@@ -553,8 +549,6 @@ export default function PartyDetail() {
     if (partyRes.status === 'fulfilled') {
       setParty(partyRes.value.data.data.party);
       setTxs(partyRes.value.data.data.transactions || []);
-      const rRes = await reminderAPI.getAll({ partyId: id, active: true }).catch(() => null);
-      if (rRes?.data?.success) setReminders(rRes.data.data);
     } else if (!navigator.onLine) {
       // Try parties-list cache as fallback
       try {
@@ -629,36 +623,6 @@ export default function PartyDetail() {
           </a>
         )}
       </div>
-
-      {/* Active Reminders Strip */}
-      {reminders.length > 0 && (
-        <div style={{
-          margin: '8px 16px 4px', padding: '10px 14px',
-          background: '#fff7e6', borderRadius: 12,
-          border: '1.5px solid #f59e0b',
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#d97706', marginBottom: 6 }}>
-            ⏰ Active Reminders ({reminders.length})
-          </div>
-          {reminders.map(r => {
-            const ICONS = { payment_due: '📅', follow_up: '🔔', balance_milestone: '⚠️', recurring: '🔁' };
-            return (
-              <div key={r._id} style={{
-                fontSize: 13, color: '#555', marginBottom: 3,
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span>{ICONS[r.type] || '🔔'}</span>
-                <span style={{ fontWeight: 600 }}>{r.title}</span>
-                {r.dueDate && (
-                  <span style={{ color: '#aaa', fontSize: 11, marginLeft: 'auto' }}>
-                    {new Date(r.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* Transaction list — unchanged */}
       <div style={{ flex:1, overflowY:'auto', paddingBottom:160 }}>
@@ -820,12 +784,6 @@ export default function PartyDetail() {
               📄 &nbsp;Report
             </button>
 
-            {/* Set Reminder */}
-            <button className="btn btn-full" style={{ marginBottom:10, background:'var(--amber-lt, #fff7e6)', color:'#d97706' }}
-              onClick={()=>{ setShowMenu(false); setShowReminderModal(true); }}>
-              🔔 &nbsp;Set Reminder
-            </button>
-
             {/* Delete Party — same as before */}
             <button className="btn btn-full" style={{ marginBottom:10, background:'var(--red-lt)', color:'var(--red)' }}
               onClick={()=>{ setShowMenu(false); setShowDel(true); }}>
@@ -886,15 +844,6 @@ export default function PartyDetail() {
           txs={txs}
           user={user}
           onClose={()=>setShowReport(false)}
-        />
-      )}
-
-      {/* Reminder Modal */}
-      {showReminderModal && party && (
-        <ReminderModal
-          party={party}
-          onClose={() => setShowReminderModal(false)}
-          onCreated={(newReminder) => setReminders(prev => [newReminder, ...prev])}
         />
       )}
     </div>
