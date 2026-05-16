@@ -24,15 +24,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.use('/api/auth',          require('./routes/authRoutes'));
-app.use('/api/categories',    require('./routes/categoryRoutes'));
-app.use('/api/parties',       require('./routes/partyRoutes'));
-app.use('/api/transactions',  require('./routes/transactionRoutes'));
-app.use('/api/bills',         require('./routes/billRoutes'));
-app.use('/api/dashboard',     require('./routes/dashboardRoutes'));
-app.use('/api/chat',          require('./routes/chatRoutes'));
-app.use('/api/reminders',     require('./routes/reminderRoutes'));
-app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/auth',         require('./routes/authRoutes'));
+app.use('/api/categories',   require('./routes/categoryRoutes'));
+app.use('/api/parties',      require('./routes/partyRoutes'));
+app.use('/api/transactions', require('./routes/transactionRoutes'));
+app.use('/api/bills',        require('./routes/billRoutes'));
+app.use('/api/dashboard',    require('./routes/dashboardRoutes'));
+app.use('/api/chat',         require('./routes/chatRoutes'));
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
 
