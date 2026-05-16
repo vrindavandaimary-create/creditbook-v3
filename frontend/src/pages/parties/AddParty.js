@@ -42,6 +42,10 @@ export default function AddParty() {
     e.preventDefault();
     if (!form.name.trim())  return toast.error('Name is required');
     if (!form.categoryId)   return toast.error('Please select a category');
+    // Block temp local IDs from reaching the server (MongoDB ObjectId cast error)
+    if (navigator.onLine && form.categoryId.startsWith('local_')) {
+      return toast.error('That category is still syncing. Wait a moment, then try again.');
+    }
     setLoading(true);
     try {
       const localId = generateLocalId();
