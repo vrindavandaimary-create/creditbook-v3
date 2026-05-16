@@ -591,7 +591,7 @@ export default function PartyDetail() {
 
   const groups = [];
   const seen   = {};
-  [...txs].sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(tx => {
+  [...txs].sort((a,b)=>new Date(a.createdAt||a.date)-new Date(b.createdAt||b.date)).forEach(tx => {
     const dk = dayKey(tx.date);
     if (!seen[dk]) { seen[dk]=true; groups.push({day:dk, label:fmtDay(tx.date), txs:[]}); }
     groups[groups.length-1].txs.push(tx);
