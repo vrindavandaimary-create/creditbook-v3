@@ -1,6 +1,5 @@
 const Transaction = require('../models/Transaction');
 const Party       = require('../models/Party');
-const { fireTransactionNotifications } = require('./reminderController');
 
 const addTransaction = async (req, res) => {
   try {
@@ -40,9 +39,6 @@ const addTransaction = async (req, res) => {
       })() : new Date(),
       balanceAfter: +party.balance.toFixed(2),
     });
-
-    // Fire event-based notifications (balance milestone, large tx, settled)
-    fireTransactionNotifications({ userId: req.user._id, party, transaction: tx }).catch(() => {});
 
     res.status(201).json({ success: true, data: { transaction: tx, party } });
   } catch(e) { console.error(e); res.status(500).json({ success: false, message: e.message }); }
