@@ -1,12 +1,8 @@
 /**
- * App.js  (REPLACE: frontend/src/App.js)
+ * App.js  –  frontend/src/App.js
  *
- * Fixes vs first draft:
- *  1. AppLayout does NOT accept an onLogout prop — logout lives in More.js
- *     which calls useAuth().logout() directly. AppLayout call is unchanged.
- *  2. Offline banner has correct top offset so it doesn't overlap content.
- *  3. getQueueCount imported at top level (not dynamic import) — simpler.
- *  4. All original routes preserved exactly.
+ * Added: calls syncAllToCache() on mount (after queue sync) and after
+ * reconnect so IndexedDB always has a fresh copy of all data.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -29,8 +25,9 @@ import Profile     from './pages/Profile';
 
 import { initConnectivityListeners, syncQueue } from './utils/syncManager';
 import { getQueueCount } from './utils/offlineDB';
+import { syncAllToCache } from './utils/dataSync';
 
-/* ── Route guards (UNCHANGED from original) ── */
+/* ── Route guards ── */
 function Private({ children }) {
   const { token } = useAuth();
   return token ? children : <Navigate to="/login" replace />;
@@ -46,62 +43,50 @@ function FloatingUI() {
 }
 
 /* ── Offline banner ── */
-const BANNER_H = 36; // px
+const BANNER_H = 36;
 
 function OfflineBanner({ isOnline, pendingCount }) {
   if (isOnline) return null;
   return (
     <div style={{
-      position:        'fixed',
-      top:             0,
-      left:            0,
-      right:           0,
-      height:          BANNER_H,
-      zIndex:          9999,
-      background:      '#e53935',
-      color:           '#fff',
-      display:         'flex',
-      alignItems:      'center',
-      justifyContent:  'center',
-      gap:             6,
-      fontSize:        13,
-      fontWeight:      700,
-      fontFamily:      "'Plus Jakarta Sans', sans-serif",
-      padding:         '0 16px',
+      position: 'fixed', top: 0, left: 0, right: 0, height: BANNER_H,
+      zIndex: 9999, background: '#e53935', color: '#fff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      gap: 6, fontSize: 13, fontWeight: 700,
+      fontFamily: "'Plus Jakarta Sans', sans-serif", padding: '0 16px',
     }}>
       📴 Offline
       {pendingCount > 0
         ? ` · ${pendingCount} action${pendingCount !== 1 ? 's' : ''} pending sync`
-        : ' · Showing cached data'}
+        : ' · Showing downloaded data'}
     </div>
   );
 }
 
-/* ── Inner shell (needs AuthContext, so lives inside AuthProvider) ── */
+/* ── Inner shell ── */
 function AppShell() {
   const [isOnline,     setIsOnline]     = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
+  const { token } = useAuth();
 
-  /* On first load, replay any queue left from a previous offline session */
+  /* On first load: replay queue then download all data to IndexedDB */
   useEffect(() => {
-    if (navigator.onLine) {
-      syncQueue()
-        .then(result => {
-          if (result.synced > 0) {
-            toast.success(
-              `✅ ${result.synced} offline action${result.synced !== 1 ? 's' : ''} synced!`
-            );
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
+    if (!navigator.onLine || !token) return;
+    syncQueue()
+      .then(result => {
+        if (result.synced > 0) {
+          toast.success(`✅ ${result.synced} offline action${result.synced !== 1 ? 's' : ''} synced!`);
+        }
+        // Always refresh the cache after startup sync
+        return syncAllToCache();
+      })
+      .catch(() => {});
+  }, [token]);
 
-  /* Wire up online/offline listeners for the lifetime of the app */
+  /* Online/offline event listeners */
   useEffect(() => {
     const cleanup = initConnectivityListeners(async (online, syncResult) => {
       setIsOnline(online);
-
       if (online) {
         if (syncResult?.synced > 0) {
           toast.success(`✅ Back online! ${syncResult.synced} action${syncResult.synced !== 1 ? 's' : ''} synced.`);
@@ -109,6 +94,8 @@ function AppShell() {
           toast.success('✅ Back online!');
         }
         setPendingCount(0);
+        // Re-download all data now that we're back online
+        syncAllToCache().catch(() => {});
       } else {
         toast.error('📴 You are offline. Changes will be saved locally.');
         const count = await getQueueCount().catch(() => 0);
@@ -121,17 +108,10 @@ function AppShell() {
   return (
     <>
       <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
-
-      {/*
-        Push the entire app down by the banner height when offline,
-        so content is never hidden behind the fixed banner.
-      */}
       <div style={{ paddingTop: isOnline ? 0 : BANNER_H }}>
         <Routes>
           <Route path="/login"    element={<Public><Login /></Public>} />
           <Route path="/register" element={<Public><Register /></Public>} />
-
-          {/* AppLayout called EXACTLY as in the original — no extra props */}
           <Route path="/" element={<Private><AppLayout /></Private>}>
             <Route index                element={<Dashboard />} />
             <Route path="parties"       element={<Parties />} />
@@ -142,7 +122,6 @@ function AppShell() {
             <Route path="more/billing"  element={<Billing />} />
             <Route path="more/profile"  element={<Profile />} />
           </Route>
-
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <FloatingUI />
@@ -161,10 +140,8 @@ export default function App() {
             duration: 2800,
             style: {
               borderRadius: '12px',
-              fontFamily:   "'Plus Jakarta Sans', sans-serif",
-              fontSize:     '14px',
-              fontWeight:   '600',
-              maxWidth:     '340px',
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: '14px', fontWeight: '600', maxWidth: '340px',
             },
             success: { iconTheme: { primary: '#1a9e5c', secondary: '#fff' } },
             error:   { iconTheme: { primary: '#e53935', secondary: '#fff' } },
