@@ -370,8 +370,13 @@ function AddTxScreen({ party, type, onClose, onSaved }) {
     if (n>1000000000)       return toast.error('Amount exceeds limit');
     setSaving(true);
     try {
-      await txAPI.add({ partyId:party._id, type, amount:n, note, date });
-      toast.success('Entry saved!'); onSaved();
+      const txRes = await txAPI.add({ partyId:party._id, type, amount:n, note, date });
+      if (txRes.data?.queued) {
+        toast.success('Entry saved offline — will sync when connected.');
+      } else {
+        toast.success('Entry saved!');
+      }
+      onSaved();
     } catch(err) { toast.error(err.response?.data?.message||'Failed'); setSaving(false); }
   };
 
@@ -534,22 +539,27 @@ export default function PartyDetail() {
 
   const load = useCallback(async () => {
     try {
-      const [r, cR] = await Promise.all([partyAPI.getOne(id), categoryAPI.getAll()]);
+      // Both calls hit IndexedDB cache when offline (client.js handles this).
+      // They only throw if offline AND no cache is available for that key.
+      const [r, cR] = await Promise.all([
+        partyAPI.getOne(id),
+        categoryAPI.getAll(),
+      ]);
       setParty(r.data.data.party);
-      setTxs(r.data.data.transactions||[]);
-      setCats(cR.data.data||[]);
-    } catch(err) {
-      // When offline + cached data exists, client.js serves it — catch means
-      // genuinely no data is available.  Don't navigate away when offline;
-      // show whatever state already exists with a gentle warning.
+      setTxs(r.data.data.transactions || []);
+      setCats(cR.data.data || []);
+    } catch (err) {
       if (!navigator.onLine) {
+        // Offline with no cached data — stay on the page and show a message.
+        // Whatever state is already set (or null) stays as-is.
         toast.error('Offline — no cached data available for this party.');
       } else {
-        toast.error('Failed to load');
+        toast.error('Failed to load party');
         navigate(-1);
       }
+    } finally {
+      setLoading(false);
     }
-    finally { setLoading(false); }
   }, [id, navigate]);
 
   useEffect(() => { load(); }, [load]);
