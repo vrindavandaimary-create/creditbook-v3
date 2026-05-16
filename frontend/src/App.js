@@ -22,6 +22,7 @@ import Reports     from './pages/Reports';
 import More        from './pages/More';
 import Billing     from './pages/billing/Billing';
 import Profile     from './pages/Profile';
+import Notifications from './pages/Notifications';
 
 import { initConnectivityListeners, syncQueue } from './utils/syncManager';
 import { getQueueCount } from './utils/offlineDB';
@@ -121,6 +122,7 @@ function AppShell() {
             <Route path="more"          element={<More />} />
             <Route path="more/billing"  element={<Billing />} />
             <Route path="more/profile"  element={<Profile />} />
+            <Route path="notifications" element={<Notifications />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
