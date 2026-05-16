@@ -43,21 +43,3 @@ export const billAPI = {
 
 export const dashAPI = { get:  () => client.get('/api/dashboard') };
 export const chatAPI = { send: d  => client.post('/api/chat', d)  };
-
-export const reminderAPI = {
-  getAll:   (params) => client.get('/api/reminders', { params }),
-  create:   d        => client.post('/api/reminders', d),
-  update:   (id, d)  => client.put(`/api/reminders/${id}`, d),
-  delete:   id       => client.delete(`/api/reminders/${id}`),
-  snooze:   (id, hours) => client.post(`/api/reminders/${id}/snooze`, { hours }),
-  dismiss:  id       => client.post(`/api/reminders/${id}/dismiss`),
-  check:    ()       => client.get('/api/reminders/check'),
-};
-
-export const notificationAPI = {
-  getAll:    (params) => client.get('/api/notifications', { params }),
-  markRead:  id       => client.post(`/api/notifications/${id}/read`),
-  markAllRead: ()     => client.post('/api/notifications/read-all'),
-  delete:    id       => client.delete(`/api/notifications/${id}`),
-  clearRead: ()       => client.delete('/api/notifications'),
-};
