@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { partyAPI, categoryAPI } from '../../api';
+import { generateLocalId } from '../../utils/offlineDB';
+import { savePending, getPending } from '../../utils/pendingStore';
 
 export default function AddParty() {
   const navigate = useNavigate();
@@ -11,22 +13,27 @@ export default function AddParty() {
   const [form, setForm] = useState({ name:'', categoryId:initCat, phone:'', address:'', notes:'' });
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isOffline,  setIsOffline]  = useState(!navigator.onLine);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
-  // Track connectivity to show/hide the offline block
+  // Track connectivity
   useEffect(() => {
     const goOn  = () => setIsOffline(false);
     const goOff = () => setIsOffline(true);
     window.addEventListener('online',  goOn);
     window.addEventListener('offline', goOff);
-    return () => {
-      window.removeEventListener('online',  goOn);
-      window.removeEventListener('offline', goOff);
-    };
+    return () => { window.removeEventListener('online', goOn); window.removeEventListener('offline', goOff); };
   }, []);
 
+  // Load categories — merge with pending offline-created ones
   useEffect(() => {
-    categoryAPI.getAll().then(r => setCategories(r.data.data || [])).catch(()=>{});
+    categoryAPI.getAll()
+      .then(r => {
+        const cats = r.data.data || [];
+        const pendingCats = getPending('category');
+        const existingIds = new Set(cats.map(c => c._id));
+        setCategories([...cats, ...pendingCats.filter(c => !existingIds.has(c._id))]);
+      })
+      .catch(() => setCategories(getPending('category')));
   }, []);
 
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}));
@@ -37,41 +44,25 @@ export default function AddParty() {
     if (!form.categoryId)   return toast.error('Please select a category');
     setLoading(true);
     try {
-      const r = await partyAPI.create(form);
-      toast.success('Party added!');
-      navigate(`/parties/${r.data.data._id}`, { replace: true });
+      const localId = generateLocalId();
+      const r = await partyAPI.create({ ...form, __localId: localId });
+      if (r.data?.queued) {
+        const selectedCat = categories.find(c => c._id === form.categoryId);
+        savePending('party', {
+          localId, _id: localId, name: form.name,
+          categoryId: selectedCat || { _id: form.categoryId, name: '' },
+          phone: form.phone, address: form.address, notes: form.notes,
+          balance: 0, pending: true,
+        });
+        toast.success('Party saved offline — will sync when connected.');
+        navigate('/parties', { replace: true });
+      } else {
+        toast.success('Party added!');
+        navigate(`/parties/${r.data.data._id}`, { replace: true });
+      }
     } catch(err) { toast.error(err.response?.data?.message || 'Failed'); }
     finally { setLoading(false); }
   };
-
-  // ── Block adding parties while offline to avoid duplicates ──
-  if (isOffline) {
-    return (
-      <div style={{ background:'var(--bg)', minHeight:'100vh' }}>
-        <div className="grad-blue" style={{ padding:'16px 16px 24px', color:'white' }}>
-          <div className="hdr-row">
-            <button className="back-btn" onClick={() => navigate(-1)}>←</button>
-            <h2 style={{ fontSize:18, fontWeight:800, margin:0 }}>Add Party</h2>
-          </div>
-        </div>
-        <div style={{ padding:32, textAlign:'center' }}>
-          <div style={{ fontSize:48, marginBottom:16 }}>📴</div>
-          <h3 style={{ fontWeight:800, marginBottom:8, color:'var(--text1)' }}>You are Offline</h3>
-          <p style={{ color:'var(--text3)', fontSize:14, lineHeight:1.6, marginBottom:24 }}>
-            Adding new parties is disabled while offline to prevent duplicate entries.
-            Please connect to the internet and try again.
-          </p>
-          <button
-            className="btn btn-primary"
-            style={{ padding:'12px 32px' }}
-            onClick={() => navigate('/parties')}
-          >
-            ← Back to Parties
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ background:'var(--bg)', minHeight:'100vh' }}>
@@ -82,7 +73,14 @@ export default function AddParty() {
         </div>
         <p style={{ opacity:.7, fontSize:13, marginTop:4 }}>Add a person or business you deal with</p>
       </div>
-      <form onSubmit={submit} style={{ padding:16 }}>
+      {isOffline && (
+      <div style={{ background:'#fff8e1', borderBottom:'1px solid #ffe082',
+        padding:'8px 16px', fontSize:12, color:'#7a5c00',
+        display:'flex', alignItems:'center', gap:6 }}>
+        <span>📶</span> Offline — party will sync when you reconnect.
+      </div>
+    )}
+    <form onSubmit={submit} style={{ padding:16 }}>
         <div className="field">
           <label>Category *</label>
           <select value={form.categoryId} onChange={set('categoryId')} style={{ fontSize:15, background:'transparent' }}>
