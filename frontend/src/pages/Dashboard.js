@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { dashAPI, categoryAPI, partyAPI } from '../api';
+import { generateLocalId } from '../utils/offlineDB';
+import { savePending, getPending } from '../utils/pendingStore';
 import { useAuth } from '../context/AuthContext';
 import { fmt, fmtDate, avatarColor, avatarLetter } from '../utils/helpers';
 
@@ -15,17 +17,25 @@ function CategoryFormSheet({ onClose, onDone, existing }) {
   const submit = async e => {
     e.preventDefault();
     if (!name.trim()) return toast.error('Name required');
-    // Offline guard — prevent duplicates from queued offline creates
-    if (!navigator.onLine) {
-      return toast.error('Adding/editing categories requires an internet connection.');
-    }
     setSaving(true);
     try {
-      existing
-        ? await categoryAPI.update(existing._id, { name:name.trim(), color })
-        : await categoryAPI.create({ name:name.trim(), color });
-      toast.success(existing ? 'Category updated!' : 'Category created!');
-      onDone();
+      let r, localId = null;
+      if (existing) {
+        r = await categoryAPI.update(existing._id, { name:name.trim(), color });
+      } else {
+        localId = generateLocalId();
+        r = await categoryAPI.create({ name:name.trim(), color, __localId:localId });
+      }
+      if (r.data?.queued) {
+        const fakeCat = { localId, _id:localId, name:name.trim(), color,
+                          partyCount:0, toGet:0, toGive:0, pending:true };
+        if (!existing) savePending('category', fakeCat);
+        toast.success('Category saved offline — will sync when connected.');
+        onDone(fakeCat);
+      } else {
+        toast.success(existing ? 'Category updated!' : 'Category created!');
+        onDone(null);
+      }
     } catch(err) { toast.error(err.response?.data?.message || 'Failed'); }
     finally { setSaving(false); }
   };
@@ -63,12 +73,10 @@ function DeleteCategorySheet({ cat, otherCategories, onClose, onDone }) {
   const submit = async () => {
     setLoading(true);
     try {
-      if (!navigator.onLine) {
-        toast.error('Deleting categories requires an internet connection.');
-        return;
-      }
-      await categoryAPI.delete(cat._id, { action, moveToCategoryId:action==='move_parties'?moveId:undefined });
-      toast.success('Category deleted!'); onDone();
+      const delRes = await categoryAPI.delete(cat._id, { action, moveToCategoryId:action==='move_parties'?moveId:undefined });
+      if (delRes.data?.queued) { toast.success('Delete queued — will sync.'); }
+      else { toast.success('Category deleted!'); }
+      onDone(null);
     } catch(err) { toast.error(err.response?.data?.message || 'Failed'); setLoading(false); }
   };
   return (
@@ -310,11 +318,21 @@ export default function Dashboard() {
   const [menuCat,     setMenuCat]     = useState(null); /* which card's 3-dot is open */
 
   const load = useCallback(async () => {
-    try { const r = await dashAPI.get(); setData(r.data.data); }
-    catch(e) {
+    try {
+      const r = await dashAPI.get();
+      const dashData = r.data.data || {};
+      const pendingCats = getPending('category');
+      if (pendingCats.length > 0) {
+        const existingIds = new Set((dashData.grouped||[]).map(g => g.category._id));
+        const newGroups   = pendingCats
+          .filter(c => !existingIds.has(c._id))
+          .map(c => ({ category:c, parties:[] }));
+        dashData.grouped = [...(dashData.grouped||[]), ...newGroups];
+      }
+      setData(dashData);
+    } catch(e) {
       console.error(e);
       if (navigator.onLine) toast.error('Failed to load dashboard');
-      // Offline: the data fallback (data || {grouped:[],...}) handles the render
     }
     finally { setLoading(false); }
   }, []);
@@ -473,7 +491,17 @@ export default function Dashboard() {
         <CategoryFormSheet
           existing={editCat}
           onClose={() => { setShowCatForm(false); setEditCat(null); }}
-          onDone={() => { setShowCatForm(false); setEditCat(null); load(); }}
+          onDone={fakeCat => {
+            setShowCatForm(false); setEditCat(null);
+            if (fakeCat) {
+              setData(prev => {
+                if (!prev) return prev;
+                const ids = new Set((prev.grouped||[]).map(g=>g.category._id));
+                if (ids.has(fakeCat._id)) return prev;
+                return { ...prev, grouped:[...(prev.grouped||[]),{category:fakeCat,parties:[]}] };
+              });
+            } else { load(); }
+          }}
         />
       )}
       {deleteCat && (
