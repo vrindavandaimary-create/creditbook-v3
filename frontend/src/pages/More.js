@@ -7,9 +7,8 @@ export default function More() {
   const { user, logout } = useAuth();
 
   const items = [
-    { icon:'🧾', label:'Billing',          desc:'Create & manage bills with receipts',  path:'/more/billing' },
-    { icon:'📊', label:'Download Reports', desc:'10 report types · Print-ready PDFs',   path:'/more/download-reports' },
-    { icon:'👤', label:'Profile',          desc:'Update your account & business info',  path:'/more/profile' },
+    { icon:'🧾', label:'Billing', desc:'Create & manage bills with receipts', path:'/more/billing' },
+    { icon:'👤', label:'Profile', desc:'Update your account & business info', path:'/more/profile' },
   ];
 
   return (
