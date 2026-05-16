@@ -11,6 +11,10 @@
 const DB_NAME    = 'creditbook_offline';
 const DB_VERSION = 1;
 
+// Exported so client.js (and any other module) can pick the right TTL
+export const TTL_SHORT = 15 * 60 * 1000;            // 15 min  (dashboard, transactions)
+export const TTL_LONG  = 7 * 24 * 60 * 60 * 1000;  // 7 days  (categories, parties)
+
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
