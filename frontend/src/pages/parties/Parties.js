@@ -34,14 +34,24 @@ export default function Parties() {
       const params = {};
       if (selCat)          params.categoryId = selCat;
       if (debouncedSearch) params.search     = debouncedSearch;
-      const [pR, cR] = await Promise.all([
+
+      // Fetch independently so a cache miss on one doesn't blank both.
+      // client.js serves IndexedDB cache transparently when offline.
+      const [pR, cR] = await Promise.allSettled([
         partyAPI.getAll(params),
         categoryAPI.getAll(),
       ]);
-      setParties(pR.data.data || []);
-      setCategories(cR.data.data || []);
-    } catch(e) { console.error(e); }
-    finally { setLoading(false); }
+
+      if (pR.status === 'fulfilled') setParties(pR.value.data.data || []);
+      if (cR.status === 'fulfilled') setCategories(cR.value.data.data || []);
+
+      // If both failed and we're offline, show a helpful toast once
+      if (pR.status === 'rejected' && cR.status === 'rejected' && !navigator.onLine) {
+        toast.error('Offline — no cached data available.');
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [selCat, debouncedSearch]);
 
   useEffect(() => { load(); }, [load]);
