@@ -1,24 +1,30 @@
 /**
- * offlineDB.js
- * PLACE AT: frontend/src/utils/offlineDB.js   (NEW FILE)
+ * offlineDB.js  –  frontend/src/utils/offlineDB.js
  *
- * All IndexedDB operations for the offline layer.
- * Two stores:
- *   "queue"  – pending mutations (POST/PUT/DELETE) to replay when online
- *   "cache"  – GET response snapshots for offline reads
+ * IndexedDB layer. Two stores:
+ *   "queue"  – pending mutations to replay when online
+ *   "cache"  – GET response snapshots for offline reads (7-day default TTL)
  */
 
 const DB_NAME    = 'creditbook_offline';
 const DB_VERSION = 1;
 
-// Exported so client.js (and any other module) can pick the right TTL
-export const TTL_SHORT = 15 * 60 * 1000;            // 15 min  (dashboard, transactions)
-export const TTL_LONG  = 7 * 24 * 60 * 60 * 1000;  // 7 days  (categories, parties)
+export const TTL_SHORT = 15 * 60 * 1000;           // 15 min
+export const TTL_LONG  = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+/**
+ * Generate a unique local ID for items created while offline.
+ * Format: "local_<timestamp36>_<random5>"
+ * Used as a temporary _id until the server assigns a real MongoDB ObjectId.
+ */
+export function generateLocalId() {
+  return 'local_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+/* ─── DB open ─────────────────────────────────────────── */
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('queue')) {
@@ -29,14 +35,12 @@ function openDB() {
         db.createObjectStore('cache', { keyPath: 'key' });
       }
     };
-
     req.onsuccess = (e) => resolve(e.target.result);
     req.onerror   = (e) => reject(e.target.error);
   });
 }
 
-/* ── QUEUE ── */
-
+/* ─── QUEUE ────────────────────────────────────────────── */
 export async function enqueue(item) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -95,10 +99,8 @@ export async function getQueueCount() {
   });
 }
 
-/* ── CACHE ── */
-
-// TTL default: 7 days (long enough for offline sessions; categories & parties rarely change)
-export async function setCache(key, data, ttl = 7 * 24 * 60 * 60 * 1000) {
+/* ─── CACHE ────────────────────────────────────────────── */
+export async function setCache(key, data, ttl = TTL_LONG) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx  = db.transaction('cache', 'readwrite');
