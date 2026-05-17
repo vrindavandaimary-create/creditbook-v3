@@ -9,14 +9,14 @@ const getParties = async (req, res) => {
     const q = { userId: req.user._id, isActive: true };
     if (categoryId) q.categoryId = categoryId;
     if (search)     q.name = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
-    const data = await Party.find(q).populate('categoryId','name color icon').sort({ updatedAt: -1 }).lean();
+    const data = await Party.find(q).populate('categoryId','name color').sort({ updatedAt: -1 }).lean();
     res.json({ success: true, count: data.length, data });
   } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 };
 
 const getParty = async (req, res) => {
   try {
-    const party = await Party.findOne({ _id: req.params.id, userId: req.user._id }).populate('categoryId','name color icon');
+    const party = await Party.findOne({ _id: req.params.id, userId: req.user._id }).populate('categoryId','name color');
     if (!party) return res.status(404).json({ success: false, message: 'Party not found.' });
     const transactions = await Transaction.find({ partyId: req.params.id, userId: req.user._id }).sort({ date: -1 }).lean();
     res.json({ success: true, data: { party, transactions } });
@@ -35,7 +35,7 @@ const createParty = async (req, res) => {
       name: name.trim(), phone: phone?.trim() || '',
       address: address?.trim() || '', notes: notes?.trim() || '',
     });
-    const populated = await Party.findById(party._id).populate('categoryId','name color icon');
+    const populated = await Party.findById(party._id).populate('categoryId','name color');
     res.status(201).json({ success: true, data: populated });
   } catch(e) { res.status(500).json({ success: false, message: e.message }); }
 };
@@ -52,7 +52,7 @@ const updateParty = async (req, res) => {
     }
     const party = await Party.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id }, updates, { new: true }
-    ).populate('categoryId','name color icon');
+    ).populate('categoryId','name color');
     if (!party) return res.status(404).json({ success: false, message: 'Party not found.' });
     res.json({ success: true, data: party });
   } catch(e) { res.status(500).json({ success: false, message: e.message }); }
