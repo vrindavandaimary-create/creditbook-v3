@@ -123,7 +123,7 @@ function ThreeDotMenu({ cat, parties, onEdit, onDelete, onClose }) {
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
-
+          <div style={{ width:36, height:36, borderRadius:10, background:cat.color, flexShrink:0 }}/>
           <div>
             <p style={{ fontWeight:800, fontSize:16 }}>{cat.name}</p>
             <p style={{ fontSize:12, color:'#999' }}>{parties} {parties===1?'party':'parties'}</p>
@@ -160,8 +160,27 @@ function CategoryDetailPage({ cat, onBack, onEdit, onDelete, navigate }) {
   const load = useCallback(() => {
     setLoading(true);
     partyAPI.getAll({ categoryId:cat._id })
-      .then(r => setParties(r.data.data || []))
-      .catch(() => toast.error('Failed to load'))
+      .then(r => {
+        const serverParties = r.data.data || [];
+        // Merge pending offline-created parties for this category
+        const pendingAll = getPending('party');
+        const catId = cat._id;
+        const pendingHere = pendingAll.filter(p =>
+          p.categoryId?._id === catId || p.categoryId === catId
+        );
+        const existingIds = new Set(serverParties.map(p => p._id));
+        setParties([...serverParties, ...pendingHere.filter(p => !existingIds.has(p._id))]);
+      })
+      .catch(() => {
+        // Offline or server error — show pending parties only
+        const pendingAll = getPending('party');
+        const catId = cat._id;
+        const pendingHere = pendingAll.filter(p =>
+          p.categoryId?._id === catId || p.categoryId === catId
+        );
+        setParties(pendingHere);
+        if (navigator.onLine) toast.error('Failed to load');
+      })
       .finally(() => setLoading(false));
   }, [cat._id]);
 
