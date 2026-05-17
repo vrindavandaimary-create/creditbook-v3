@@ -70,7 +70,18 @@ client.interceptors.response.use(
 
   /* ══ ERROR ══ */
   async (err) => {
-    const isNetworkError = !err.response;
+    // A genuine network error has NO response object at all.
+    // A 503 from the SW (wrong SW config) has err.response — that must NOT
+    // be treated as an offline network error or IndexedDB is bypassed.
+    const isNetworkError = !err.response && (
+      err.code === 'ERR_NETWORK' ||
+      err.code === 'ECONNABORTED' ||
+      err.message === 'Network Error' ||
+      err.message?.includes('network') ||
+      err.message?.includes('Failed to fetch') ||
+      err.message?.includes('offline') ||
+      typeof err.response === 'undefined'
+    );
     const config = err.config || {};
     const method = (config.method || '').toUpperCase();
     const url    = config.url || '';
