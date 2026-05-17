@@ -368,7 +368,7 @@ function AddTxScreen({ party, type, onClose, onSaved }) {
   const confirm = async () => {
     const n = parseFloat(amount);
     if (!n||n<=0||isNaN(n)) return toast.error('Enter a valid amount');
-    if (n>1000000000)       return toast.error('Amount exceeds limit');
+    if (n>10000000)         return toast.error('Amount cannot exceed ₹1 Crore.');
     setSaving(true);
     try {
       const txRes = await txAPI.add({ partyId:party._id, type, amount:n, note, date });
@@ -453,7 +453,7 @@ function EditTxSheet({ tx, onClose, onSaved }) {
   const save = async () => {
     const n = parseFloat(amount);
     if (!n||n<=0||isNaN(n)) return toast.error('Enter a valid amount');
-    if (n>1000000000)       return toast.error('Amount exceeds limit');
+    if (n>10000000)         return toast.error('Amount cannot exceed ₹1 Crore.');
     setSaving(true);
     try {
       await txAPI.update(tx._id, { amount:n, type, note, date });
@@ -656,12 +656,19 @@ export default function PartyDetail() {
                       <p style={{ fontSize:22, fontWeight:800, color:'#1a1d2e', letterSpacing:-0.5 }}>₹{fmt(tx.amount,0)}</p>
                       <p style={{ fontSize:11, color:'#bbb', whiteSpace:'nowrap' }}>{fmtTime(tx.createdAt || tx.date)}</p>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#b0bec5" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      <button onClick={e=>{ e.stopPropagation(); setTxMenu(tx); }}
-                        style={{ marginLeft:'auto', width:24, height:24, borderRadius:'50%', background:'#f0f0f0', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#888">
-                          <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                        </svg>
-                      </button>
+                      {!tx.pending && (
+                        <button onClick={e=>{ e.stopPropagation(); setTxMenu(tx); }}
+                          style={{ marginLeft:'auto', width:24, height:24, borderRadius:'50%', background:'#f0f0f0', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#888">
+                            <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                          </svg>
+                        </button>
+                      )}
+                      {tx.pending && (
+                        <span style={{ marginLeft:'auto', fontSize:9, color:'#f57c00', fontWeight:700, background:'#fff8e1', padding:'2px 6px', borderRadius:50, flexShrink:0 }}>
+                          Syncing…
+                        </span>
+                      )}
                     </div>
                     {tx.note && <p style={{ fontSize:12, color:'#999', marginTop:5, marginLeft:38 }}>{tx.note}</p>}
                   </div>
