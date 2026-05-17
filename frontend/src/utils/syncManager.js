@@ -16,7 +16,6 @@
 
 import { getQueue, dequeue, incrementRetry, clearCache } from './offlineDB';
 import { clearAllPending } from './pendingStore';
-import { syncAllToCache  } from './dataSync';
 
 const MAX_RETRIES = 3;
 
@@ -77,8 +76,12 @@ export async function syncQueue() {
         await dequeue(item.id).catch(() => {});
         synced++;
       } else if (res.status === 401) {
-        await dequeue(item.id).catch(() => {});
-        failed++;
+        // JWT expired — DO NOT delete queue items, they must survive re-login
+        // Clear token and stop — user must re-authenticate first
+        localStorage.removeItem('cb3_token');
+        localStorage.removeItem('cb3_user');
+        window.location.href = '/login';
+        break;
       } else {
         await incrementRetry(item.id).catch(() => {});
         failed++;
@@ -91,12 +94,10 @@ export async function syncQueue() {
   }
 
   if (synced > 0) {
-    /* 1. Wipe stale caches */
+    // Wipe stale list-level caches (individual /api/parties/:id cleared by dataSync)
     await Promise.all(CACHE_KEYS.map(k => clearCache(k).catch(() => {})));
-    /* 2. Remove pending optimistic items from localStorage */
+    // Remove pending optimistic items from localStorage
     clearAllPending();
-    /* 3. Re-download all data into IndexedDB so offline still works */
-    syncAllToCache().catch(() => {});
   }
 
   return { synced, failed };
