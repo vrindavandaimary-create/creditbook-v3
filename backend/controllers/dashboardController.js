@@ -15,8 +15,9 @@ const getDashboard = async (req, res) => {
     const totalToGive = parties.filter(p=>p.balance<0).reduce((s,p)=>s+Math.abs(p.balance),0);
 
     // group parties by category
+    // Guard against orphaned parties (null categoryId from failed offline sync)
     const grouped = categories.map(c => {
-      const ps = parties.filter(p => p.categoryId.toString() === c._id.toString());
+      const ps = parties.filter(p => p.categoryId && p.categoryId.toString() === c._id.toString());
       return {
         category: c,
         parties: ps,
