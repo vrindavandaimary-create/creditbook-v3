@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { partyAPI, categoryAPI } from '../../api';
 import { getPending } from '../../utils/pendingStore';
-import { fmt, avatarColor, avatarLetter } from '../../utils/helpers';
+import { fmt, avatarColor, avatarLetter, balanceClass } from '../../utils/helpers';
 
 /* ── Debounce hook ── */
 function useDebounce(value, delay = 400) {
@@ -71,6 +71,13 @@ export default function Parties() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Reload when offline queue syncs so the list shows server-fresh data.
+  useEffect(() => {
+    const onSynced = () => { if (navigator.onLine) load(); };
+    window.addEventListener('cb3:synced', onSynced);
+    return () => window.removeEventListener('cb3:synced', onSynced);
+  }, [load]);
+
   const deleteParty = async (party) => {
     setDeleting(true);
     try {
@@ -114,7 +121,7 @@ export default function Parties() {
             {categories.map(c => (
               <button key={c._id} onClick={() => setSelCat(id => id===c._id?'':c._id)}
                 style={{ padding:'5px 14px', borderRadius:50, fontSize:12, fontWeight:600, fontFamily:'inherit', cursor:'pointer', border:`1.5px solid ${selCat===c._id?c.color:'var(--border)'}`, background: selCat===c._id?c.color:'white', color: selCat===c._id?'white':'var(--text2)' }}>
-                {c.name}
+                {c.icon} {c.name}
               </button>
             ))}
           </div>
