@@ -11,6 +11,7 @@
  */
 
 import { partyAPI, categoryAPI, dashAPI } from '../api';
+import { clearAllCache } from './offlineDB';
 
 let syncing = false; // prevent concurrent runs
 
@@ -18,20 +19,28 @@ export async function syncAllToCache() {
   if (!navigator.onLine || syncing) return;
   syncing = true;
   try {
-    // 1. Categories + parties list + dashboard in parallel
+    // Wipe ALL stale IndexedDB caches first — this includes individual
+    // /api/parties/:id entries that hold stale transaction lists.
+    // Safe to do because we immediately re-download everything below.
+    await clearAllCache().catch(() => {});
+
+    // Re-download categories + parties list + dashboard in parallel
     const [, partyRes] = await Promise.allSettled([
       categoryAPI.getAll(),
       partyAPI.getAll(),
       dashAPI.get(),
     ]);
 
-    // 2. Pre-cache every individual party's detail page (party + its transactions)
-    //    so PartyDetail works offline even if the user never opened it.
+    // Cache each party's detail page (transactions included)
+    // This is the most important step — without it PartyDetail shows stale txns offline.
     if (partyRes.status === 'fulfilled') {
       const parties = partyRes.value?.data?.data || [];
-      await Promise.allSettled(
-        parties.map(p => partyAPI.getOne(p._id))
-      );
+      // Batch in groups of 5 to avoid hammering the server
+      for (let i = 0; i < parties.length; i += 5) {
+        await Promise.allSettled(
+          parties.slice(i, i + 5).map(p => partyAPI.getOne(p._id))
+        );
+      }
     }
   } catch (e) {
     console.warn('[dataSync] cache sync error:', e);
