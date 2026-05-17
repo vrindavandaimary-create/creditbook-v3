@@ -97,17 +97,21 @@ const saveBillAsTransaction = async (req, res) => {
     if (!bill) return res.status(404).json({ success: false, message: 'Bill not found.' });
     if (bill.savedAsTransaction) return res.status(400).json({ success: false, message: 'Already saved as transaction.' });
 
-    const party = await Party.findOne({ _id: bill.partyId, userId: req.user._id, isActive: true });
-    if (!party) return res.status(404).json({ success: false, message: 'Party not found.' });
+    const partyExists = await Party.findOne({ _id: bill.partyId, userId: req.user._id, isActive: true });
+    if (!partyExists) return res.status(404).json({ success: false, message: 'Party not found.' });
 
-    party.balance = +(party.balance + bill.total).toFixed(2);
-    await party.save();
+    // Atomic $inc prevents race condition when concurrent requests update balance
+    const party = await Party.findByIdAndUpdate(
+      bill.partyId,
+      { $inc: { balance: +bill.total } },
+      { new: true }
+    );
 
     const tx = await Transaction.create({
       userId: req.user._id, partyId: bill.partyId,
       type: 'gave', amount: bill.total,
       note: `Bill ${bill.billNumber}`,
-      date: bill.date, balanceAfter: party.balance
+      date: bill.date, balanceAfter: +party.balance.toFixed(2)
     });
 
     bill.savedAsTransaction = true;
@@ -127,7 +131,7 @@ const deleteBill = async (req, res) => {
       const tx = await Transaction.findById(bill.transactionId);
       if (tx) {
         const party = await Party.findById(bill.partyId);
-        if (party) { party.balance = +(party.balance - bill.total).toFixed(2); await party.save(); }
+        if (party) { await Party.findByIdAndUpdate(party._id, { $inc: { balance: -bill.total } }); }
         await Transaction.findByIdAndDelete(bill.transactionId);
       }
     }
