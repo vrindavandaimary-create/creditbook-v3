@@ -75,14 +75,9 @@ self.addEventListener('fetch', event => {
           .catch(async () => {
             const cached = await caches.match(request);
             if (cached) return cached;
-            // Nothing cached — return a JSON 503 instead of a browser error
-            return new Response(
-              JSON.stringify({ success: false, offline: true, message: 'You are offline.' }),
-              {
-                status:  503,
-                headers: { 'Content-Type': 'application/json' },
-              }
-            );
+            // No SW cache — throw so the browser reports a genuine network error.
+            // This lets client.js (axios interceptor) fall back to IndexedDB cache.
+            throw new Error('SW: offline and no cached response');
           })
       );
       return;
