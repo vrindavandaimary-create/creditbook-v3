@@ -46,10 +46,11 @@ const chat = async (req, res) => {
     const topCreditors= [...parties].filter(p=>p.balance<0).sort((a,b)=>a.balance-b.balance).slice(0,10);
 
     const categoryStats = categories.map(c => {
-      const ps = parties.filter(p => p.categoryId.toString() === c._id.toString());
+      // Guard against null categoryId from orphaned/failed offline sync
+      const ps = parties.filter(p => p.categoryId && p.categoryId.toString() === c._id.toString());
       const toGet  = ps.filter(p=>p.balance>0).reduce((s,p)=>s+p.balance,0);
       const toGive = ps.filter(p=>p.balance<0).reduce((s,p)=>s+Math.abs(p.balance),0);
-      return { name: c.name, icon: c.icon, count: ps.length, toGet: +toGet.toFixed(2), toGive: +toGive.toFixed(2) };
+      return { name: c.name, count: ps.length, toGet: +toGet.toFixed(2), toGive: +toGive.toFixed(2) };
     });
 
     const partyList = parties.slice(0,50).map(p => {
@@ -66,7 +67,7 @@ Owner: ${req.user.name} | Business: ${req.user.businessName}
 💸 Total to GIVE: ₹${totalToGive.toFixed(2)}
 📊 Net Balance: ₹${netBalance.toFixed(2)} (${netBalance>=0?'POSITIVE':'NEGATIVE'})
 👤 Total Parties: ${parties.length} across ${categories.length} categories
-📋 Categories: ${categoryStats.map(c=>`${c.icon}${c.name}(${c.count} parties, GET:₹${c.toGet}, GIVE:₹${c.toGive})`).join(' | ')||'none'}
+📋 Categories: ${categoryStats.map(c=>`${c.name}(${c.count} parties, GET:₹${c.toGet}, GIVE:₹${c.toGive})`).join(' | ')||'none'}
 👤 All Parties: ${partyList||'none'}
 🏆 Top debtors: ${topDebtors.map(p=>`${p.name}:₹${p.balance.toFixed(0)}`).join(', ')||'none'}
 📤 Top creditors: ${topCreditors.map(p=>`${p.name}:₹${Math.abs(p.balance).toFixed(0)}`).join(', ')||'none'}
@@ -86,7 +87,7 @@ Owner: ${req.user.name} | Business: ${req.user.businessName}
 RULES: Be concise, use ₹, give business insights, never fabricate data.`;
 
     const GROQ_KEY = process.env.GROQ_API_KEY;
-    if (!GROQ_KEY || GROQ_KEY.includes('your_groq'))
+    if (!GROQ_KEY || !GROQ_KEY.trim() || GROQ_KEY.includes('your_groq'))
       return res.json({ success: true, data: { reply: smartFallback(message, { categories, parties, totalToGet, totalToGive, topDebtors, recentTx, user: req.user }), action: null, chart: null } });
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -162,7 +163,7 @@ async function executeIntent(intent, userId, parties, categories) {
       if (!intent.name?.trim()) return null;
       let cat = categories.find(c => c.name.toLowerCase() === intent.category?.toLowerCase?.());
       if (!cat && intent.category) {
-        cat = await require('../models/Category').create({ userId, name: intent.category.trim(), color:'#1a4fd6', icon:'🏷️' });
+        cat = await require('../models/Category').create({ userId, name: intent.category.trim(), color:'#1a4fd6' });
         categories.push(cat);
       }
       if (!cat) return { message: `❌ Category "${intent.category}" not found.`, success: false };
@@ -171,7 +172,7 @@ async function executeIntent(intent, userId, parties, categories) {
     }
     if (intent.intent === 'create_category') {
       if (!intent.name?.trim()) return null;
-      const cat = await require('../models/Category').create({ userId, name: intent.name.trim(), color:'#1a4fd6', icon:'🏷️' });
+      const cat = await require('../models/Category').create({ userId, name: intent.name.trim(), color:'#1a4fd6' });
       return { message: `✅ Category "${cat.name}" created!`, success: true, refresh: true };
     }
     return null;
