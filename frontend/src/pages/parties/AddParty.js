@@ -24,17 +24,23 @@ export default function AddParty() {
     return () => { window.removeEventListener('online', goOn); window.removeEventListener('offline', goOff); };
   }, []);
 
-  // Load categories — merge with pending offline-created ones
+  // Load categories — re-run whenever connectivity changes so coming back online
+  // immediately populates the dropdown even if it was empty at mount (offline).
   useEffect(() => {
     categoryAPI.getAll()
       .then(r => {
         const cats = r.data.data || [];
-        const pendingCats = getPending('category');
-        const existingIds = new Set(cats.map(c => c._id));
-        setCategories([...cats, ...pendingCats.filter(c => !existingIds.has(c._id))]);
+        if (navigator.onLine) {
+          // Online: show real categories only (pending have temp IDs, unsafe to use online)
+          setCategories(cats);
+        } else {
+          const pendingCats = getPending('category');
+          const existingIds = new Set(cats.map(c => c._id));
+          setCategories([...cats, ...pendingCats.filter(c => !existingIds.has(c._id))]);
+        }
       })
       .catch(() => setCategories(getPending('category')));
-  }, []);
+  }, [isOffline]); // re-run when connectivity changes
 
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}));
 
@@ -89,7 +95,7 @@ export default function AddParty() {
           <label>Category *</label>
           <select value={form.categoryId} onChange={set('categoryId')} style={{ fontSize:15, background:'transparent' }}>
             <option value="">Select category…</option>
-            {categories.map(c => <option key={c._id} value={c._id}>{c.icon} {c.name}</option>)}
+            {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
           </select>
         </div>
         <div className="field"><label>Name *</label><input placeholder="Full name or business name" value={form.name} onChange={set('name')} autoFocus/></div>
