@@ -55,7 +55,9 @@ function MiniChart({ chart }) {
         ds.data.forEach((val,i) => {
           const barH = ((val-minVal)/range)*ch;
           const x = pad.left+i*bgw+(bgw*0.15)+di*bw;
-          ctx.beginPath(); ctx.roundRect(x,pad.top+ch-barH,bw-2,barH,[4,4,0,0]); ctx.fill();
+          // Use fillRect for broad browser compatibility
+        // (ctx.roundRect is only Chrome 99+, Firefox 112+, Safari 15.4+)
+        ctx.fillRect(x, pad.top+ch-barH, bw-2, barH);
         });
       });
     }
