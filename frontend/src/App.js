@@ -69,33 +69,49 @@ function AppShell() {
   const [pendingCount, setPendingCount] = useState(0);
   const { token } = useAuth();
 
-  /* On first load: replay queue then download all data to IndexedDB */
+  /* ── On startup: sync queue → refresh cache → notify pages ── */
   useEffect(() => {
-    if (!navigator.onLine || !token) return;
-    syncQueue()
-      .then(result => {
+    if (!token) return;
+
+    async function startup() {
+      if (navigator.onLine) {
+        // 1. Replay any queued offline actions
+        const result = await syncQueue().catch(() => ({ synced: 0, failed: 0 }));
         if (result.synced > 0) {
           toast.success(`✅ ${result.synced} offline action${result.synced !== 1 ? 's' : ''} synced!`);
         }
-        // Always refresh the cache after startup sync
-        return syncAllToCache();
-      })
-      .catch(() => {});
+        // 2. Re-download ALL data into IndexedDB (clear stale + fresh fetch)
+        await syncAllToCache().catch(() => {});
+        // 3. Tell every mounted page to reload — they might be showing stale cache
+        if (result.synced > 0) {
+          window.dispatchEvent(new CustomEvent('cb3:synced'));
+        }
+      }
+    }
+
+    startup();
   }, [token]);
 
-  /* Online/offline event listeners */
+  /* ── Online / offline events ── */
   useEffect(() => {
     const cleanup = initConnectivityListeners(async (online, syncResult) => {
       setIsOnline(online);
+
       if (online) {
+        // Show toast
         if (syncResult?.synced > 0) {
           toast.success(`✅ Back online! ${syncResult.synced} action${syncResult.synced !== 1 ? 's' : ''} synced.`);
         } else {
           toast.success('✅ Back online!');
         }
         setPendingCount(0);
-        // Re-download all data now that we're back online
-        syncAllToCache().catch(() => {});
+
+        // Re-download all data (clears stale caches first)
+        await syncAllToCache().catch(() => {});
+
+        // Always tell all pages to reload fresh data when coming back online,
+        // whether or not items were synced — the server is the source of truth.
+        window.dispatchEvent(new CustomEvent('cb3:synced'));
       } else {
         toast.error('📴 You are offline. Changes will be saved locally.');
         const count = await getQueueCount().catch(() => 0);
