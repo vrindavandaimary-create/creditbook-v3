@@ -19,14 +19,8 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW registered:', reg.scope))
-            .catch(err => console.log('SW error:', err));
-        });
-      }
-    </script>
+    <!-- Service worker is registered in src/index.js — do NOT register here too.
+         Dual registration caused the activate handler to wipe the shell cache
+         on every load, breaking all offline asset serving. -->
   </body>
 </html>
