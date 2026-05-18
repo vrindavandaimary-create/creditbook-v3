@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { partyAPI, txAPI, categoryAPI } from '../../api';
-import { getCache } from '../../utils/offlineDB';
+import { getCache, setCache, TTL_LONG } from '../../utils/offlineDB';
 import { fmt, avatarLetter, avatarColor, todayStr } from '../../utils/helpers';
 
 const fmtTime = d => new Date(d).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true }).toUpperCase();
@@ -566,7 +566,7 @@ export default function PartyDetail() {
           if (found) {
             setParty(found);
             setTxs([]);
-            toast('Offline — transaction history unavailable until reconnected.', { icon: '\u1F4F4' });
+            toast('Offline — transaction history unavailable until reconnected.', { icon: '📴' });
           } else {
             toast.error('Offline — party not in cache. Visit online first.');
             navigate(-1);
@@ -726,12 +726,27 @@ export default function PartyDetail() {
       </div>
 
       {/* Add tx */}
-      {showAddTx && <AddTxScreen party={party} type={showAddTx} onClose={()=>setShowAddTx(null)} onSaved={fakeTx => {
+      {showAddTx && <AddTxScreen party={party} type={showAddTx} onClose={()=>setShowAddTx(null)} onSaved={async fakeTx => {
             setShowAddTx(null);
             if (fakeTx) {
-              setTxs(prev => [...prev, fakeTx]);
+              // 1. Update React state immediately (optimistic UI)
               const delta = fakeTx.type === 'got' ? -fakeTx.amount : fakeTx.amount;
-              setParty(prev => ({ ...prev, balance:(prev.balance||0)+delta }));
+              const newBalance = (party.balance || 0) + delta;
+              const updatedParty = { ...party, balance: newBalance };
+              const updatedTxs   = [...txs, { ...fakeTx, balanceAfter: newBalance }];
+              setTxs(updatedTxs);
+              setParty(updatedParty);
+
+              // 2. Persist the updated state into IndexedDB detail cache so it
+              //    survives an app close + reopen during a long offline stretch.
+              //    Without this, every restart reloads the pre-offline cache and
+              //    the user sees stale balances and missing transactions.
+              try {
+                await setCache(`/api/parties/${id}`, {
+                  success: true,
+                  data: { party: updatedParty, transactions: updatedTxs },
+                }, TTL_LONG);
+              } catch { /* cache write failure is non-fatal */ }
             } else { load(); }
           }}/>}
 
