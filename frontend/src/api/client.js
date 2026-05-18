@@ -73,14 +73,18 @@ client.interceptors.response.use(
     // A genuine network error has NO response object at all.
     // A 503 from the SW (wrong SW config) has err.response — that must NOT
     // be treated as an offline network error or IndexedDB is bypassed.
+    //
+    // NOTE: the outer guard `!err.response` is the primary check.
+    // We then require at least one of the known network-error signals so that
+    // axios config errors and cancelled requests (which also lack a response)
+    // are NOT silently enqueued as offline mutations.
     const isNetworkError = !err.response && (
       err.code === 'ERR_NETWORK' ||
       err.code === 'ECONNABORTED' ||
       err.message === 'Network Error' ||
       err.message?.includes('network') ||
       err.message?.includes('Failed to fetch') ||
-      err.message?.includes('offline') ||
-      typeof err.response === 'undefined'
+      err.message?.includes('offline')
     );
     const config = err.config || {};
     const method = (config.method || '').toUpperCase();
