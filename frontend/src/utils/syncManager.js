@@ -10,12 +10,17 @@
  *      item whose data references "local_xxx" gets it replaced with the real
  *      _id before the request is sent.  This fixes the case where a party
  *      was created offline using a temp category ID.
- *   3. After a successful sync: clears stale caches, clears pending store,
- *      and re-fetches all data so IndexedDB is up-to-date for next offline.
+ *   3. Per-item pending cleanup (Bug #8 fix): pendingStore entries are removed
+ *      individually as each item syncs, not blanket-cleared at the end. This
+ *      prevents ghost UI entries when some items fail or exceed MAX_RETRIES.
+ *   4. syncAllToCache() is called after any successful syncs (Bug #4 fix) so
+ *      that the IndexedDB is refreshed with server-truth data regardless of
+ *      which code path triggered the sync (startup or connectivity event).
  */
 
 import { getQueue, dequeue, incrementRetry, clearCache } from './offlineDB';
-import { clearAllPending } from './pendingStore';
+import { removePending } from './pendingStore';
+import { syncAllToCache } from './dataSync';
 
 const MAX_RETRIES = 3;
 
@@ -37,6 +42,12 @@ export async function syncQueue() {
   for (const item of queue) {
     if ((item.retries || 0) >= MAX_RETRIES) {
       await dequeue(item.id).catch(() => {});
+      // Bug #8 fix: remove this specific pending item so it doesn't
+      // linger as a ghost in the UI after being permanently dropped.
+      if (item.localId) {
+        removePending('party',    item.localId);
+        removePending('category', item.localId);
+      }
       failed++;
       continue;
     }
@@ -72,12 +83,17 @@ export async function syncQueue() {
             || json?.data?.category?._id
             || json?.data?.party?._id;
           if (realId) idMap[item.localId] = realId;
+
+          // Bug #8 fix: remove this item's pending entry now that it has
+          // a real server ID — don't wait for a blanket clearAllPending().
+          removePending('party',    item.localId);
+          removePending('category', item.localId);
         }
         await dequeue(item.id).catch(() => {});
         synced++;
       } else if (res.status === 401) {
-        // JWT expired — DO NOT delete queue items, they must survive re-login
-        // Clear token and stop — user must re-authenticate first
+        // JWT expired — DO NOT delete queue items, they must survive re-login.
+        // Clear token and stop — user must re-authenticate first.
         localStorage.removeItem('cb3_token');
         localStorage.removeItem('cb3_user');
         window.location.href = '/login';
@@ -94,10 +110,13 @@ export async function syncQueue() {
   }
 
   if (synced > 0) {
-    // Wipe stale list-level caches (individual /api/parties/:id cleared by dataSync)
+    // Wipe stale list-level caches so the re-fetch below starts clean.
     await Promise.all(CACHE_KEYS.map(k => clearCache(k).catch(() => {})));
-    // Remove pending optimistic items from localStorage
-    clearAllPending();
+
+    // Bug #4 fix: re-download all data into IndexedDB so that the cache
+    // is always server-fresh after a sync, regardless of which call path
+    // triggered syncQueue() (startup useEffect OR connectivity listener).
+    await syncAllToCache().catch(() => {});
   }
 
   return { synced, failed };
