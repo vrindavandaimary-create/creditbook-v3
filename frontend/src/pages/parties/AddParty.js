@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { partyAPI, categoryAPI } from '../../api';
-import { generateLocalId } from '../../utils/offlineDB';
+import { generateLocalId, getCache, setCache, TTL_LONG } from '../../utils/offlineDB';
 import { savePending, getPending } from '../../utils/pendingStore';
 
 export default function AddParty() {
@@ -58,12 +58,35 @@ export default function AddParty() {
       const r = await partyAPI.create({ ...form, __localId: localId });
       if (r.data?.queued) {
         const selectedCat = categories.find(c => c._id === form.categoryId);
-        savePending('party', {
+        const newParty = {
           localId, _id: localId, name: form.name,
           categoryId: selectedCat || { _id: form.categoryId, name: '' },
           phone: form.phone, address: form.address, notes: form.notes,
           balance: 0, pending: true,
-        });
+        };
+        savePending('party', newParty);
+
+        // Persist into the /api/parties list cache so the party appears
+        // on the Parties screen after an app restart while still offline.
+        try {
+          const existing = await getCache('/api/parties').catch(() => null);
+          const list = existing?.data || [];
+          if (!list.find(p => p._id === localId)) {
+            await setCache('/api/parties', {
+              success: true,
+              data: [...list, newParty],
+            }, TTL_LONG);
+          }
+        } catch { /* non-fatal */ }
+
+        // Also seed an empty detail cache so PartyDetail loads offline.
+        try {
+          await setCache(`/api/parties/${localId}`, {
+            success: true,
+            data: { party: newParty, transactions: [] },
+          }, TTL_LONG);
+        } catch { /* non-fatal */ }
+
         toast.success('Party saved offline — will sync when connected.');
         navigate('/parties', { replace: true });
       } else {
