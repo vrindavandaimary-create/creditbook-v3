@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { txAPI, partyAPI, categoryAPI } from '../api';
 import { fmt, fmtDate } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
+import { getCache } from '../utils/offlineDB';
 
 /* ── helpers ── */
 const localDateStr = (d = new Date()) =>
@@ -420,27 +421,54 @@ export default function Analytics() {
       const partyParams = {};
       if (filter.categoryId) partyParams.categoryId = filter.categoryId;
 
-      const [tR, pR, cR] = await Promise.all([
+      // Bug #7 fix: use Promise.allSettled so a network failure (offline)
+      // doesn't throw — instead we fall back to IndexedDB cache per resource.
+      const [tR, pR, cR] = await Promise.allSettled([
         txAPI.getAll(txParams),
         partyAPI.getAll(partyParams),
         categoryAPI.getAll(),
       ]);
 
-      let fetchedTxs = tR.data.data || [];
+      // Resolve each result: use server data if fulfilled, otherwise try cache.
+      const txData = tR.status === 'fulfilled'
+        ? (tR.value.data.data || [])
+        : ((await getCache('/api/transactions').catch(() => null))?.data || []);
+
+      const partyData = pR.status === 'fulfilled'
+        ? (pR.value.data.data || [])
+        : ((await getCache('/api/parties').catch(() => null))?.data || []);
+
+      const catData = cR.status === 'fulfilled'
+        ? (cR.value.data.data || [])
+        : ((await getCache('/api/categories').catch(() => null))?.data || []);
+
+      let fetchedTxs = txData;
       // If category filter is set, only keep transactions for parties in that category
       if (filter.categoryId) {
-        const partyIds = new Set((pR.data.data || []).map(p => p._id));
+        const partyIds = new Set(partyData.map(p => p._id));
         fetchedTxs = fetchedTxs.filter(t => partyIds.has(t.partyId?._id || t.partyId));
+      }
+      // If party filter is set, apply it client-side against cached data when offline
+      if (filter.partyId) {
+        fetchedTxs = fetchedTxs.filter(t => (t.partyId?._id || t.partyId) === filter.partyId);
       }
 
       setTxs(fetchedTxs);
-      setParties(pR.data.data || []);
-      setCategories(cR.data.data || []);
+      setParties(partyData);
+      setCategories(catData);
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
   }, [filter]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Bug #7 fix: reload when offline queue syncs so reports reflect
+  // any transactions that were added offline and just synced.
+  useEffect(() => {
+    const onSynced = () => { if (navigator.onLine) load(); };
+    window.addEventListener('cb3:synced', onSynced);
+    return () => window.removeEventListener('cb3:synced', onSynced);
+  }, [load]);
 
   /* ── Computed stats ── */
   const totalIn  = txs.filter(t=>t.type==='got').reduce((s,t)=>s+t.amount,0);
