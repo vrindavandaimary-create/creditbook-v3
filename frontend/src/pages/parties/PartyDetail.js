@@ -550,12 +550,28 @@ export default function PartyDetail() {
       setParty(partyRes.value.data.data.party);
       setTxs(partyRes.value.data.data.transactions || []);
     } else if (!navigator.onLine) {
-      // Try parties-list cache as fallback
+      // Bug #5 fix: try the party DETAIL cache first (populated by dataSync.js
+      // which calls partyAPI.getOne for every party). This cache contains the
+      // full transaction history. Only fall back to the parties-list cache
+      // (which has no transactions) if the detail cache is missing.
       try {
-        const listCache = await getCache('/api/parties');
-        const found = (listCache?.data || []).find(p => p._id === id);
-        if (found) { setParty(found); setTxs([]); }
-        else { toast.error('Offline — party not in cache. Visit online first.'); navigate(-1); }
+        const detailCache = await getCache(`/api/parties/${id}`);
+        if (detailCache?.data?.party) {
+          setParty(detailCache.data.party);
+          setTxs(detailCache.data.transactions || []);
+        } else {
+          // Secondary fallback: parties list cache (balance visible, no txs)
+          const listCache = await getCache('/api/parties');
+          const found = (listCache?.data || []).find(p => p._id === id);
+          if (found) {
+            setParty(found);
+            setTxs([]);
+            toast('Offline — transaction history unavailable until reconnected.', { icon: '\u1F4F4' });
+          } else {
+            toast.error('Offline — party not in cache. Visit online first.');
+            navigate(-1);
+          }
+        }
       } catch { toast.error('Offline — no cached data.'); navigate(-1); }
     } else { toast.error('Failed to load party'); navigate(-1); }
     setLoading(false);
