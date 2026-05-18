@@ -9,8 +9,12 @@
 const DB_NAME    = 'creditbook_offline';
 const DB_VERSION = 1;
 
-export const TTL_SHORT = 15 * 60 * 1000;           // 15 min
-export const TTL_LONG  = 7 * 24 * 60 * 60 * 1000; // 7 days
+// TTL_SHORT was 15 min — kills offline reads after first reconnect window.
+// For a 3-day offline scenario every endpoint needs at least 4 days of TTL.
+// TTL_SHORT is kept for truly volatile data (e.g. dashboard totals) but
+// raised to 4 days so the app stays fully usable for a long offline stretch.
+export const TTL_SHORT = 4  * 24 * 60 * 60 * 1000; // 4 days  (was 15 min)
+export const TTL_LONG  = 10 * 24 * 60 * 60 * 1000; // 10 days (was 7 days)
 
 /**
  * Generate a unique local ID for items created while offline.
