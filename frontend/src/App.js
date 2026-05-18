@@ -75,14 +75,20 @@ function AppShell() {
 
     async function startup() {
       if (navigator.onLine) {
-        // 1. Replay any queued offline actions
+        // 1. Replay any queued offline actions.
+        //    syncQueue() internally calls syncAllToCache() when items were synced,
+        //    so we only need to call it separately when there was nothing to sync
+        //    (i.e. normal app load — make sure IndexedDB is populated for offline).
         const result = await syncQueue().catch(() => ({ synced: 0, failed: 0 }));
         if (result.synced > 0) {
           toast.success(`✅ ${result.synced} offline action${result.synced !== 1 ? 's' : ''} synced!`);
         }
-        // 2. Re-download ALL data into IndexedDB (clear stale + fresh fetch)
-        await syncAllToCache().catch(() => {});
-        // 3. Tell every mounted page to reload — they might be showing stale cache
+        // 2. Only fetch-to-cache when syncQueue didn't already do it.
+        //    This avoids a double fetch on startup when items were queued.
+        if (result.synced === 0) {
+          await syncAllToCache().catch(() => {});
+        }
+        // 3. Tell every mounted page to reload — they might be showing stale cache.
         if (result.synced > 0) {
           window.dispatchEvent(new CustomEvent('cb3:synced'));
         }
@@ -106,8 +112,13 @@ function AppShell() {
         }
         setPendingCount(0);
 
-        // Re-download all data (clears stale caches first)
-        await syncAllToCache().catch(() => {});
+        // syncQueue() (inside initConnectivityListeners) already called
+        // syncAllToCache() when items were synced. Only call it here when
+        // nothing was queued — e.g. user came back online with a clean queue
+        // and we still want a fresh cache pull.
+        if (!syncResult || syncResult.synced === 0) {
+          await syncAllToCache().catch(() => {});
+        }
 
         // Always tell all pages to reload fresh data when coming back online,
         // whether or not items were synced — the server is the source of truth.
